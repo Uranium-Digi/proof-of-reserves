@@ -1,0 +1,15 @@
+[package]
+name = "proof-of-reserves-transmitter"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+tokio = { version = "1.4", features = ["full"] }
+hex = "0.4"
+
+chainlink-data-streams-sdk = "1.0.0"
+chainlink-data-streams-report = "1.0.0"
+dotenv = "0.15"
+
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["time"] }
