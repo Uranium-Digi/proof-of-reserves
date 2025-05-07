@@ -1,0 +1,47 @@
+# Node.js
+node_modules/
+**/node_modules/
+dist/
+**/dist/
+
+# Build artifacts
+**/target/
+**/.anchor/
+
+# IDE and editor files
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Test wallets and keys
+test-wallets/
+**/test-wallets/
+*.keypair
+*.pem
+
+# Temporary files
+*.tmp
+*.temp
+
+
+# Environment files
+.env
+*.env
+**/.env
+
+# Secrets directories
+.secrets/
+**/.secrets/
+
+# Common Rust/Anchor ignores
+target/
+**/target/
+.DS_Store
+.anchor/ 

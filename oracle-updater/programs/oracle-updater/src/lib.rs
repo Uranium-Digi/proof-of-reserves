@@ -7,7 +7,7 @@ use anchor_lang::solana_program::{
 use chainlink_data_streams_report::report::v3::ReportDataV3;
 use chainlink_solana_data_streams::VerifierInstructions;
 
-declare_id!("56NFC5jU8CAY4STg6ZsNoDjaCH3oHCaiUib8A8eDn34T");
+declare_id!("HRBnLRvMMGiFC817nofYv5yTfkQnbrUWgLVgA8F4WWLN");
 
 #[program]
 pub mod oracle_updater {

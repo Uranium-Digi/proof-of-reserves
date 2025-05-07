@@ -5,15 +5,15 @@ package_manager = "yarn"
 resolution = true
 skip-lint = false
 
-[programs.localnet]
-oracle_updater = "56NFC5jU8CAY4STg6ZsNoDjaCH3oHCaiUib8A8eDn34T"
+[programs.devnet]
+oracle_updater = "HRBnLRvMMGiFC817nofYv5yTfkQnbrUWgLVgA8F4WWLN"
 
 [registry]
 url = "https://api.apr.dev"
 
 [provider]
-cluster = "localnet"
-wallet = "~/.config/solana/id.json"
+cluster = "devnet"
+wallet = "../.secrets/tokenAuthority.json"
 
 [scripts]
 test = "cargo test"
