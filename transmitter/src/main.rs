@@ -1,11 +1,19 @@
 mod modes;
 use modes::directapi;
 use modes::websocket;
+use wallet_loader::load_funding_wallet;
 
+mod oracle_updater;
+mod transmitter;
+mod wallet_loader;
+use crate::oracle_updater::loader::OracleUpdaterProgram;
+use anchor_client::solana_sdk::{commitment_config::CommitmentConfig, signer::Signer};
 use std::env;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    dotenv::dotenv().ok(); // loads .env file automatically
+
     let args: Vec<String> = env::args().collect();
     if args.len() < 3 {
         eprintln!("Usage: cargo run [mode: directapi|websocket] [feed_id]");
@@ -23,6 +31,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             std::process::exit(1);
         }
     }
+
+    let wallet = load_funding_wallet()?;
+    println!("🔑 Loaded wallet pubkey: {}", wallet.pubkey());
+    // // Step 1: Load the oracle-updater program
+    // let oracle_program = OracleUpdaterProgram::new(CommitmentConfig::confirmed())?;
+
+    // // Step 2: Print the loaded program_id
+    // println!(
+    //     "✅ OracleUpdater loaded. Program ID: {}",
+    //     oracle_program.program_id
+    // );
 
     Ok(())
 }

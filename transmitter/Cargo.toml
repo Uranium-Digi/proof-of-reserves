@@ -13,3 +13,7 @@ dotenv = "0.15"
 
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["time"] }
+anchor-client = { version = "0.31.0", features = ["async"] }
+anchor-lang = "0.31.0"
+anyhow = "1.0.93"
+oracle-updater = { path = "../oracle-updater/programs/oracle-updater" }
