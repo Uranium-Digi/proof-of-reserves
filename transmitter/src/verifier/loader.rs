@@ -14,14 +14,16 @@ use anyhow::Result;
 use serde_json;
 use std::rc::Rc;
 
-pub struct OracleUpdaterProgram {
+use oracle_updater::oracle_updater;
+
+pub struct Verifier {
     pub program: Program<Rc<Keypair>>,
     pub program_id: Pubkey,
 }
 
 use crate::wallet_loader;
 
-impl OracleUpdaterProgram {
+impl Verifier {
     pub fn new(commitment: CommitmentConfig) -> Result<Self> {
         let rpc_url =
             env::var("RPC_URL").map_err(|_| anyhow::anyhow!("RPC_URL env variable is not set"))?;
@@ -30,9 +32,11 @@ impl OracleUpdaterProgram {
 
         let provider = Client::new_with_options(
             Cluster::Custom(rpc_url.to_string(), rpc_url.to_string()),
-            wallet,
+            Rc::clone(&wallet),
             commitment,
         );
+
+        let client = Client::new(Cluster::Devnet, Rc::clone(&wallet));
 
         // Load program ID from the oracle-updater target directory
         let keypair =
@@ -40,7 +44,9 @@ impl OracleUpdaterProgram {
                 .map_err(|e| anyhow::anyhow!("Failed to read keypair file: {}", e))?;
         let program_id = keypair.pubkey();
         println!("program_id: {}", program_id);
-        let program = provider.program(program_id)?;
+        let program = client.program(program_id).unwrap();
+
+        // let program = provider.program(program_id)?;
 
         Ok(Self {
             program,

@@ -1,5 +1,5 @@
 use {
-    crate::oracle_updater::loader::OracleUpdaterProgram,
+    crate::verifier::loader::Verifier,
     crate::wallet_loader::load_funding_wallet,
     anchor_client::{
         Client, Cluster,

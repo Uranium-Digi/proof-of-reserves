@@ -3,10 +3,11 @@ use modes::directapi;
 use modes::websocket;
 use wallet_loader::load_funding_wallet;
 
-mod oracle_updater;
 mod transmitter;
+mod verifier;
 mod wallet_loader;
-use crate::oracle_updater::loader::OracleUpdaterProgram;
+use crate::verifier::loader::Verifier;
+// use crate::verifier::loader::OracleUpdaterProgram;
 use anchor_client::solana_sdk::{commitment_config::CommitmentConfig, signer::Signer};
 use std::env;
 
@@ -38,7 +39,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let wallet = load_funding_wallet()?;
     println!("🔑 Loaded wallet pubkey: {}", wallet.pubkey());
 
-    let oracle_program = OracleUpdaterProgram::new(CommitmentConfig::confirmed())?;
+    // let oracle_program = OracleUpdaterProgram::new(CommitmentConfig::confirmed())?;
+    let verifier = Verifier::new(CommitmentConfig::confirmed())?;
 
     Ok(())
 }
