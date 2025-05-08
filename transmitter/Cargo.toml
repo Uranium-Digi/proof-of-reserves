@@ -18,3 +18,4 @@ anchor-lang = "0.31.0"
 anyhow = "1.0.93"
 oracle-updater = { path = "../oracle-updater/programs/oracle-updater" }
 serde_json = "1.0"
+snap = "1"

@@ -2774,6 +2774,7 @@ dependencies = [
  "hex",
  "oracle-updater",
  "serde_json",
+ "snap",
  "tokio",
  "tracing",
  "tracing-subscriber",
