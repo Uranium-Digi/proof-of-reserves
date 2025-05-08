@@ -2773,6 +2773,7 @@ dependencies = [
  "dotenv",
  "hex",
  "oracle-updater",
+ "serde_json",
  "tokio",
  "tracing",
  "tracing-subscriber",
