@@ -24,7 +24,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let wallet = load_funding_wallet()?;
     println!("🔑 Loaded wallet pubkey: {}", wallet.pubkey());
 
-    let transmitter = Transmitter::new(CommitmentConfig::confirmed())?;
+    let transmitter = Transmitter::new()?;
 
     transmitter.verify(&report.full_report).await?;
 
