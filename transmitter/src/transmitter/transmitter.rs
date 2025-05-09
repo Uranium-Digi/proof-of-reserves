@@ -30,7 +30,9 @@ pub struct Transmitter {
 
 use crate::utils;
 use crate::utils::config::get_client_and_provider;
-use crate::utils::oracle_updater_loader::load_oracle_updater_programId;
+use crate::utils::oracle_updater_loader::{
+    RouteType, load_oracle_updater, load_oracle_updater_programId,
+};
 
 pub const CHAINLINK_VERIFIER_PROGRAM_ID_DEVNET: &str =
     "Gt9S41PtjR58CbG9JhJ3J6vxesqrNAswbWYbLNTMZA3c";
@@ -39,15 +41,17 @@ pub const DEFAULT_HEX_STRING: &str = "0x00064f2cd1be62b7496ad4897b984db99243e092
 
 impl Transmitter {
     pub fn new() -> Result<Self> {
-        let rpc_url =
-            env::var("RPC_URL").map_err(|_| anyhow::anyhow!("RPC_URL env variable is not set"))?;
+        let (program, program_id) = load_oracle_updater(RouteType::default())?;
 
-        let wallet = load_funding_wallet()?;
+        // let rpc_url =
+        //     env::var("RPC_URL").map_err(|_| anyhow::anyhow!("RPC_URL env variable is not set"))?;
 
-        let client = Client::new(Cluster::Devnet, Rc::clone(&wallet));
-        let program_id = load_oracle_updater_programId()?;
+        // let wallet = load_funding_wallet()?;
 
-        let program = client.program(program_id).unwrap();
+        // let client = Client::new(Cluster::Devnet, Rc::clone(&wallet));
+        // let program_id = load_oracle_updater_programId()?;
+
+        // let program = client.program(program_id).unwrap();
 
         // //  We can also use the provider to create the program
         // let commitment = CommitmentConfig::confirmed();
@@ -65,6 +69,33 @@ impl Transmitter {
             program_id,
         })
     }
+    // pub fn new() -> Result<Self> {
+    //     let rpc_url =
+    //         env::var("RPC_URL").map_err(|_| anyhow::anyhow!("RPC_URL env variable is not set"))?;
+
+    //     let wallet = load_funding_wallet()?;
+
+    //     let client = Client::new(Cluster::Devnet, Rc::clone(&wallet));
+    //     let program_id = load_oracle_updater_programId()?;
+
+    //     let program = client.program(program_id).unwrap();
+
+    //     // //  We can also use the provider to create the program
+    //     // let commitment = CommitmentConfig::confirmed();
+    //     // let provider: Client<Rc<Keypair>> = Client::new_with_options(
+    //     //     Cluster::Custom(rpc_url.to_string(), rpc_url.to_string()),
+    //     //     Rc::clone(&wallet),
+    //     //     commitment,
+    //     // );
+    //     // let program = provider.program(program_id).unwrap();
+
+    //     println!("program_id: {}", program_id);
+
+    //     Ok(Self {
+    //         program,
+    //         program_id,
+    //     })
+    // }
 
     pub fn parse_and_compress_hex_report(&self, hex_string: &str) -> Result<(Vec<u8>, Vec<u8>)> {
         let clean_hex = hex_string.strip_prefix("0x").unwrap_or(hex_string);
