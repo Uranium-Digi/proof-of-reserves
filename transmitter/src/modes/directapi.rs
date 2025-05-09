@@ -8,13 +8,17 @@ use std::error::Error;
 
 // https://docs.chain.link/data-streams/tutorials/streams-direct/streams-direct-api-rust
 
-pub async fn run(feed_id_input: &str) -> Result<(Report), Box<dyn Error>> {
+const DEFAULT_FEED_ID: &str = "0x000359843a543ee2fe414dc14c7e7920ef10f4372990b79d6361cdc0dd1ba782";
+
+pub async fn run() -> Result<(Report), Box<dyn Error>> {
     // Load environment variables from .env file
     dotenv().ok();
 
     // Get API credentials from environment variables
     let api_key = env::var("API_KEY").expect("API_KEY must be set");
     let api_secret = env::var("API_SECRET").expect("API_SECRET must be set");
+
+    let feed_id_input = DEFAULT_FEED_ID;
 
     println!("KEY: {}", api_key);
 

@@ -1,12 +1,13 @@
 mod modes;
 use modes::directapi;
 use modes::websocket;
+
+use transmitter::transmitter::Transmitter;
 use wallet_loader::load_funding_wallet;
 
 mod transmitter;
-mod verifier;
 mod wallet_loader;
-use crate::verifier::loader::Verifier;
+
 // use crate::verifier::loader::OracleUpdaterProgram;
 use anchor_client::solana_sdk::{commitment_config::CommitmentConfig, signer::Signer};
 
@@ -20,14 +21,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let feed_id = DEFAULT_FEED_ID;
 
-    let report = directapi::run(feed_id).await?;
+    let report = directapi::run().await?;
 
     let wallet = load_funding_wallet()?;
     println!("🔑 Loaded wallet pubkey: {}", wallet.pubkey());
 
-    let verifier = Verifier::new(CommitmentConfig::confirmed())?;
+    let transmitter = Transmitter::new(CommitmentConfig::confirmed())?;
 
-    verifier.verify(&report.full_report).await?;
+    transmitter.verify(&report.full_report).await?;
 
     Ok(())
 }
