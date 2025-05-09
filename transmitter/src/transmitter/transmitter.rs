@@ -29,6 +29,7 @@ pub struct Transmitter {
 }
 
 use crate::utils;
+use crate::utils::oracle_updater_loader::load_oracle_updater_programId;
 
 pub const CHAINLINK_VERIFIER_PROGRAM_ID_DEVNET: &str =
     "Gt9S41PtjR58CbG9JhJ3J6vxesqrNAswbWYbLNTMZA3c";
@@ -50,18 +51,22 @@ impl Transmitter {
 
         let client = Client::new(Cluster::Devnet, Rc::clone(&wallet));
 
-        let idl_path = "../oracle-updater/target/idl/oracle_updater.json";
-        let file =
-            File::open(idl_path).map_err(|e| anyhow::anyhow!("Failed to open IDL file: {}", e))?;
-        let reader = BufReader::new(file);
-        let idl: Value = serde_json::from_reader(reader)
-            .map_err(|e| anyhow::anyhow!("Failed to parse IDL JSON: {}", e))?;
+        let program_id = load_oracle_updater_programId()?;
 
-        let program_id_str = idl["address"]
-            .as_str()
-            .ok_or_else(|| anyhow::anyhow!("Program ID not found in IDL metadata"))?;
-        let program_id = Pubkey::from_str(program_id_str)
-            .map_err(|e| anyhow::anyhow!("Failed to parse program ID: {}", e))?;
+        // // let idl_path = "../oracle-updater/target/idl/oracle_updater.json";
+        // let idl_path = std::env::var("ORACLE_UPDATER_IDL_PATH").unwrap();
+        // println!("idl_path: {}", idl_path);
+        // let file =
+        //     File::open(idl_path).map_err(|e| anyhow::anyhow!("Failed to open IDL file: {}", e))?;
+        // let reader = BufReader::new(file);
+        // let idl: Value = serde_json::from_reader(reader)
+        //     .map_err(|e| anyhow::anyhow!("Failed to parse IDL JSON: {}", e))?;
+
+        // let program_id_str = idl["address"]
+        //     .as_str()
+        //     .ok_or_else(|| anyhow::anyhow!("Program ID not found in IDL metadata"))?;
+        // let program_id = Pubkey::from_str(program_id_str)
+        //     .map_err(|e| anyhow::anyhow!("Failed to parse program ID: {}", e))?;
 
         let program = client.program(program_id).unwrap();
         // // Load program ID from the oracle-updater target directory
@@ -102,6 +107,7 @@ impl Transmitter {
         let feed_id = raw_bytes[0..32].to_vec();
         Ok((compressed, feed_id))
     }
+
     pub async fn verify(&self, hex_string: &str) -> Result<()> {
         // let hex_string = DEFAULT_HEX_STRING;
         // let hex_string = "0x00064f2cd1be62b7496ad4897b984db99243e0921906f66ded15149d993ef42c000000000000000000000000000000000000000000000000000000000103c90c000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000e000000000000000000000000000000000000000000000000000000000000002200000000000000000000000000000000000000000000000000000000000000280000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001200003684ea93c43ed7bd00ab3bb189bb62f880436589f1ca58b599cd97d6007fb0000000000000000000000000000000000000000000000000000000067570fa40000000000000000000000000000000000000000000000000000000067570fa400000000000000000000000000000000000000000000000000004c6ac85bf854000000000000000000000000000000000000000000000000002e1bf13b772a9c0000000000000000000000000000000000000000000000000000000067586124000000000000000000000000000000000000000000000000002bb4cf7662949c000000000000000000000000000000000000000000000000002bae04e2661000000000000000000000000000000000000000000000000000002bb6a26c3fbeb80000000000000000000000000000000000000000000000000000000000000002af5e1b45dd8c84b12b4b58651ff4173ad7ca3f5d7f5374f077f71cce020fca787124749ce727634833d6ca67724fd912535c5da0f42fa525f46942492458f2c2000000000000000000000000000000000000000000000000000000000000000204e0bfa6e82373ae7dff01a305b72f1debe0b1f942a3af01bad18e0dc78a599f10bc40c2474b4059d43a591b75bdfdd80aafeffddfd66d0395cca2fdeba1673d";
