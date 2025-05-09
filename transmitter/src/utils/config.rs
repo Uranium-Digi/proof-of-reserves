@@ -13,7 +13,6 @@ pub fn get_rpc_url() -> Result<String> {
     Ok(rpc_url)
 }
 
-// return client and provider;
 pub fn get_client_and_provider() -> Result<(Client<Rc<Keypair>>, Client<Rc<Keypair>>)> {
     let rpc_url = get_rpc_url()?;
     let wallet = load_funding_wallet()?;
