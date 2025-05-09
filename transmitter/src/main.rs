@@ -39,10 +39,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let wallet = load_funding_wallet()?;
     println!("🔑 Loaded wallet pubkey: {}", wallet.pubkey());
 
-    // let oracle_program = OracleUpdaterProgram::new(CommitmentConfig::confirmed())?;
-    let verifier = Verifier::new(CommitmentConfig::confirmed())?;
+    // let verifier = Verifier::new(CommitmentConfig::confirmed())?;
 
-    verifier.verify().await?;
+    // verifier.verify().await?;
 
     Ok(())
 }

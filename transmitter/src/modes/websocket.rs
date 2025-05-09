@@ -1,5 +1,6 @@
 use chainlink_data_streams_report::feed_id::ID;
-use chainlink_data_streams_report::report::{decode_full_report, v3::ReportDataV3}; // Import the v3 report schema for Crypto streams
+// Import the v3 report schema for Crypto streams
+use chainlink_data_streams_report::report::{Report, decode_full_report, v3::ReportDataV3};
 use chainlink_data_streams_sdk::config::Config;
 use chainlink_data_streams_sdk::stream::Stream;
 use dotenv::dotenv;
@@ -10,6 +11,7 @@ use tracing_subscriber::fmt::time::UtcTime;
 
 // https://docs.chain.link/data-streams/tutorials/streams-direct/streams-direct-ws-rust
 // #[tokio::main]
+
 pub async fn run(feed_id_input: &str) -> Result<(), Box<dyn Error>> {
     // Load environment variables from .env file
     dotenv().ok();
