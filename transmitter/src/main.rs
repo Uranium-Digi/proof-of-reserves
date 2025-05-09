@@ -3,10 +3,10 @@ use modes::directapi;
 use modes::websocket;
 
 use transmitter::transmitter::Transmitter;
-use wallet_loader::load_funding_wallet;
+use utils::wallet_loader::load_funding_wallet;
 
 mod transmitter;
-mod wallet_loader;
+mod utils;
 
 // use crate::verifier::loader::OracleUpdaterProgram;
 use anchor_client::solana_sdk::{commitment_config::CommitmentConfig, signer::Signer};
@@ -18,8 +18,6 @@ const DEFAULT_FEED_ID: &str = "0x000359843a543ee2fe414dc14c7e7920ef10f4372990b79
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     dotenv::dotenv().ok(); // loads .env file automatically
-
-    let feed_id = DEFAULT_FEED_ID;
 
     let report = directapi::run().await?;
 

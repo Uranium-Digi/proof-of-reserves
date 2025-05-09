@@ -1,4 +1,5 @@
-use std::env;
+use std::io::BufReader;
+use std::{env, fs::File};
 
 use std::str::FromStr;
 
@@ -13,8 +14,10 @@ use anchor_client::{
 };
 use anchor_lang::prelude::Pubkey;
 use anyhow::{Context, Result};
-use serde_json;
+use serde_json::{self, Value};
 use std::rc::Rc;
+
+use utils::{oracle_updater_loader, wallet_loader::load_funding_wallet};
 
 use oracle_updater::accounts::ExampleProgramContext;
 
@@ -25,7 +28,7 @@ pub struct Transmitter {
     pub program_id: Pubkey,
 }
 
-use crate::wallet_loader;
+use crate::utils;
 
 pub const CHAINLINK_VERIFIER_PROGRAM_ID_DEVNET: &str =
     "Gt9S41PtjR58CbG9JhJ3J6vxesqrNAswbWYbLNTMZA3c";
@@ -37,7 +40,7 @@ impl Transmitter {
         let rpc_url =
             env::var("RPC_URL").map_err(|_| anyhow::anyhow!("RPC_URL env variable is not set"))?;
 
-        let wallet = wallet_loader::load_funding_wallet()?;
+        let wallet = load_funding_wallet()?;
 
         let provider = Client::new_with_options(
             Cluster::Custom(rpc_url.to_string(), rpc_url.to_string()),
@@ -47,13 +50,27 @@ impl Transmitter {
 
         let client = Client::new(Cluster::Devnet, Rc::clone(&wallet));
 
-        // Load program ID from the oracle-updater target directory
-        let keypair =
-            read_keypair_file("../oracle-updater/target/deploy/oracle_updater-keypair.json")
-                .map_err(|e| anyhow::anyhow!("Failed to read keypair file: {}", e))?;
-        let program_id = keypair.pubkey();
-        println!("program_id: {}", program_id);
+        let idl_path = "../oracle-updater/target/idl/oracle_updater.json";
+        let file =
+            File::open(idl_path).map_err(|e| anyhow::anyhow!("Failed to open IDL file: {}", e))?;
+        let reader = BufReader::new(file);
+        let idl: Value = serde_json::from_reader(reader)
+            .map_err(|e| anyhow::anyhow!("Failed to parse IDL JSON: {}", e))?;
+
+        let program_id_str = idl["address"]
+            .as_str()
+            .ok_or_else(|| anyhow::anyhow!("Program ID not found in IDL metadata"))?;
+        let program_id = Pubkey::from_str(program_id_str)
+            .map_err(|e| anyhow::anyhow!("Failed to parse program ID: {}", e))?;
+
         let program = client.program(program_id).unwrap();
+        // // Load program ID from the oracle-updater target directory
+        // let keypair =
+        //     read_keypair_file("../oracle-updater/target/deploy/oracle_updater-keypair.json")
+        //         .map_err(|e| anyhow::anyhow!("Failed to read keypair file: {}", e))?;
+        // let program_id = keypair.pubkey();
+        // println!("program_id: {}", program_id);
+        // let program = client.program(program_id).unwrap();
 
         Ok(Self {
             program,
