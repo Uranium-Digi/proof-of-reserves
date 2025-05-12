@@ -19,17 +19,36 @@ const DEFAULT_FEED_ID: &str = "0x000359843a543ee2fe414dc14c7e7920ef10f4372990b79
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     dotenv::dotenv().ok(); // loads .env file automatically
 
-    let report = directapi::run().await?;
-
-    let wallet = load_funding_wallet()?;
-    println!("🔑 Loaded wallet pubkey: {}", wallet.pubkey());
+    // let report = directapi::run().await?;
 
     let transmitter = Transmitter::new()?;
+    // let report = websocket::run();
 
-    transmitter.verify(&report.full_report).await?;
+    websocket::run(&transmitter).await?;
+
+    // let wallet = load_funding_wallet()?;
+    // println!("🔑 Loaded wallet pubkey: {}", wallet.pubkey());
+
+    // let transmitter = Transmitter::new()?;
+
+    // transmitter.verify(&report.full_report).await?;
 
     Ok(())
 }
+// async fn main() -> Result<(), Box<dyn std::error::Error>> {
+//     dotenv::dotenv().ok(); // loads .env file automatically
+
+//     let report = directapi::run().await?;
+
+//     let wallet = load_funding_wallet()?;
+//     println!("🔑 Loaded wallet pubkey: {}", wallet.pubkey());
+
+//     let transmitter = Transmitter::new()?;
+
+//     transmitter.verify(&report.full_report).await?;
+
+//     Ok(())
+// }
 
 // async fn main() -> Result<(), Box<dyn std::error::Error>> {
 //     dotenv::dotenv().ok(); // loads .env file automatically

@@ -6,9 +6,9 @@ use dotenv::dotenv;
 use std::env;
 use std::error::Error;
 
-// https://docs.chain.link/data-streams/tutorials/streams-direct/streams-direct-api-rust
+use crate::utils::config::DEFAULT_FEED_ID;
 
-const DEFAULT_FEED_ID: &str = "0x000359843a543ee2fe414dc14c7e7920ef10f4372990b79d6361cdc0dd1ba782";
+// https://docs.chain.link/data-streams/tutorials/streams-direct/streams-direct-api-rust
 
 pub async fn run() -> Result<(Report), Box<dyn Error>> {
     // Load environment variables from .env file

@@ -1,5 +1,6 @@
 use std::str::FromStr;
 
+use anchor_client::solana_sdk::signature::Signature;
 use anchor_client::{Program, solana_sdk::signature::Keypair};
 use anchor_lang::prelude::Pubkey;
 use anyhow::{Context, Result};
@@ -61,7 +62,7 @@ impl Transmitter {
         Ok((compressed, feed_id))
     }
 
-    pub async fn verify(&self, full_report: &str) -> Result<()> {
+    pub async fn verify(&self, full_report: &str) -> Result<(Signature)> {
         let (compressed_report, feed_id) = self.parse_and_compress_hex_report(full_report)?;
 
         let verifier_program_id: Pubkey =
@@ -101,6 +102,6 @@ impl Transmitter {
         println!("📍 Instruction: Verify");
         println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
 
-        Ok(())
+        Ok((tx))
     }
 }

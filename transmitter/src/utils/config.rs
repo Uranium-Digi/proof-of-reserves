@@ -25,3 +25,6 @@ pub fn get_client_and_provider() -> Result<(Client<Rc<Keypair>>, Client<Rc<Keypa
 
     Ok((client, provider))
 }
+
+pub const DEFAULT_FEED_ID: &str =
+    "0x000359843a543ee2fe414dc14c7e7920ef10f4372990b79d6361cdc0dd1ba782";
