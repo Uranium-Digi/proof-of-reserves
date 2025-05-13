@@ -1,5 +1,7 @@
 use std::str::FromStr;
 
+use anchor_client::solana_sdk::lamports;
+use anchor_client::solana_sdk::native_token::LAMPORTS_PER_SOL;
 use anchor_client::solana_sdk::signature::Signature;
 use anchor_client::{Program, solana_sdk::signature::Keypair};
 use anchor_lang::prelude::Pubkey;
@@ -62,8 +64,12 @@ impl Transmitter {
         Ok((compressed, feed_id))
     }
 
-    pub async fn verify(&self, full_report: &str) -> Result<(Signature)> {
+    pub async fn verify(&self, full_report: &str) -> Result<Signature> {
         let (compressed_report, feed_id) = self.parse_and_compress_hex_report(full_report)?;
+
+        let can_mint_amount = 1 * LAMPORTS_PER_SOL; // 1 sol in lamports;
+        let can_burn_amount = 1 * LAMPORTS_PER_SOL; // 1 sol in lamports;
+        let total_reserves = 1 * LAMPORTS_PER_SOL; // 1 sol in lamports;
 
         let verifier_program_id: Pubkey =
             Pubkey::from_str(CHAINLINK_VERIFIER_PROGRAM_ID_DEVNET).unwrap();
@@ -75,8 +81,12 @@ impl Transmitter {
 
         let (config_account, _) = Pubkey::find_program_address(&[&feed_id], &verifier_program_id);
 
+        // This is the PDA for ProofState (owned by oracle_updater)
+        let (proof_state, _) = Pubkey::find_program_address(&[b"proof"], &self.program.id()); // Make sure this seed matches the on-chain logic
+
         let user = self.program.payer();
 
+        // let proof_state = &mut ctx.accounts.proof_state;
         let verify_ix = self
             .program
             .request()
@@ -86,9 +96,14 @@ impl Transmitter {
                 user,
                 config_account,
                 verifier_program_id,
+                proof_state,
+                system_program: anchor_client::solana_sdk::system_program::ID,
             })
             .args(oracle_updater::instruction::Verify {
                 signed_report: compressed_report,
+                can_mint_amount,
+                can_burn_amount,
+                total_reserves,
             })
             .instructions()?
             .remove(0);
@@ -102,6 +117,23 @@ impl Transmitter {
         println!("📍 Instruction: Verify");
         println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
 
-        Ok((tx))
+        let proof_state_account: oracle_updater::ProofState =
+            self.program.account(proof_state).await?;
+
+        println!("🧻 Proof State:");
+        println!(
+            "  Valid From Timestamp: {}",
+            proof_state_account.valid_from_timestamp
+        );
+        println!(
+            "  Observations Timestamp: {}",
+            proof_state_account.observations_timestamp
+        );
+        println!("  Expires At: {}", proof_state_account.expires_at);
+        println!("  Can Mint: {}", proof_state_account.can_mint_amount);
+        println!("  Can Burn: {}", proof_state_account.can_burn_amount);
+        println!("  Total Reserves: {}", proof_state_account.total_reserves);
+
+        Ok(tx)
     }
 }

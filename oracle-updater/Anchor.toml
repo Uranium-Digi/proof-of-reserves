@@ -6,7 +6,7 @@ resolution = true
 skip-lint = false
 
 [programs.devnet]
-oracle_updater = "HRBnLRvMMGiFC817nofYv5yTfkQnbrUWgLVgA8F4WWLN"
+oracle_updater = "8y6CXiQsLVXa98ASAeC9oMmo9GV7n7Z2mCwUJysYjUYs"
 
 [registry]
 url = "https://api.apr.dev"

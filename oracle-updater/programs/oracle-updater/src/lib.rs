@@ -7,7 +7,7 @@ use anchor_lang::solana_program::{
 use chainlink_data_streams_report::report::v3::ReportDataV3;
 use chainlink_solana_data_streams::VerifierInstructions;
 
-declare_id!("HRBnLRvMMGiFC817nofYv5yTfkQnbrUWgLVgA8F4WWLN");
+declare_id!("8y6CXiQsLVXa98ASAeC9oMmo9GV7n7Z2mCwUJysYjUYs");
 
 #[program]
 pub mod oracle_updater {
@@ -16,7 +16,13 @@ pub mod oracle_updater {
     /// Verifies a Data Streams report using Cross-Program Invocation to the Verifier program
     /// Returns the decoded report data if verification succeeds
 
-    pub fn verify(ctx: Context<ExampleProgramContext>, signed_report: Vec<u8>) -> Result<()> {
+    pub fn verify(
+        ctx: Context<ExampleProgramContext>,
+        signed_report: Vec<u8>,
+        can_mint_amount: u64,
+        can_burn_amount: u64,
+        total_reserves: u64,
+    ) -> Result<()> {
         let program_id = ctx.accounts.verifier_program_id.key();
         let verifier_account = ctx.accounts.verifier_account.key();
         let access_controller = ctx.accounts.access_controller.key();
@@ -49,6 +55,15 @@ pub mod oracle_updater {
             msg!("Report data found!");
             let report = ReportDataV3::decode(&return_data)
                 .map_err(|_| error!(CustomError::InvalidReportData))?;
+
+            let proof_state = &mut ctx.accounts.proof_state;
+
+            proof_state.valid_from_timestamp = report.valid_from_timestamp;
+            proof_state.observations_timestamp = report.observations_timestamp;
+            proof_state.expires_at = report.expires_at;
+            proof_state.can_mint_amount = can_mint_amount;
+            proof_state.can_burn_amount = can_burn_amount;
+            proof_state.total_reserves = total_reserves;
 
             // Log report fields
             msg!("FeedId: {}", report.feed_id);
@@ -93,11 +108,56 @@ pub struct ExampleProgramContext<'info> {
     /// /// CHECK: The account strudcture is validated by the verifier program.
     pub access_controller: AccountInfo<'info>,
     /// The account that signs the transaction.
+
+    #[account(mut)]
     pub user: Signer<'info>,
+    // pub user: Signer<'info>,
     /// The Config Account is a PDA derived from a signed report
     /// CHECK: the account is validated by the verifier program.
-    pub config_account: UncheckedAccount<'info>,
+    pub config_account: AccountInfo<'info>,
     /// The Verifier Program ID specifies the target Chainlink Data Streams Verifier program
     /// CHECK: The program ID is validated by the verifier program.
     pub verifier_program_id: AccountInfo<'info>,
+    /// PDA that stores the last verified report
+    #[account(
+        init_if_needed,
+        seeds=[b"proof"],
+        bump, payer = user,        
+        space = 8 + std::mem::size_of::<ProofState>()
+    )]
+    pub proof_state: Account<'info, ProofState>,
+    pub system_program: Program<'info, System>,
+}
+
+#[account]
+pub struct ProofState {
+    // pub feed_id: ReportDataV3::feed_id::ID,
+    // pub benchmark_price: u128,
+    pub valid_from_timestamp: u32,
+    pub observations_timestamp: u32,
+    pub expires_at: u32,
+    pub can_mint_amount: u64,
+    pub can_burn_amount: u64,
+    pub total_reserves: u64,
+}
+
+impl ProofState {
+    // function to build proof state from a report
+    // pub fn build_proof_state(
+    //     report: &ReportDataV3,
+    //     can_mint_amount: u128,
+    //     can_burn_amount: u128,
+    //     total_reserves: u128,
+    // ) -> Self {
+    //     Self {
+    //         // feed_id: report.feed_id,
+    //         // benchmark_price: report.benchmark_price,
+    //         valid_from_timestamp: report.valid_from_timestamp,
+    //         observations_timestamp: report.observations_timestamp,
+    //         expires_at: report.expires_at,
+    //         can_mint_amount,
+    //         can_burn_amount,
+    //         total_reserves,
+    //     }
+    // }
 }
