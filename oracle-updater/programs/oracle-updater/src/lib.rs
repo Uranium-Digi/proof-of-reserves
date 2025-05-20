@@ -279,33 +279,33 @@ impl ProofState {
 }
 
 
-// #[cfg(test)]
-// mod tests {
-//     use super::*;
-//     #[tokio::test]
-//     async fn test_proof_state_encoding_decoding() {
-//         let feed_id: [u8; 32] = [1u8; 32];
-//         let original = ProofState {
-//             name: "Proof of Reserves".to_string(),
-//             total_reserves: 1000000,
-//             total_token: 900000,
-//             ripcord: false,
-//             ripcord_details: vec![],
-//             timestamp: 1716153600,
-//         };
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn test_proof_state_encoding_decoding() {
+        let feed_id: [u8; 32] = [1u8; 32];
+        let original = ProofState {
+            name: "Proof of Reserves".to_string(),
+            total_reserves: 1000000,
+            total_token: 900000,
+            ripcord: false,
+            ripcord_details: vec![],
+            timestamp: 1716153600,
+        };
 
-//         let encoded = original.to_bytes(&feed_id);
-//         println!("Encoded: {:?}", encoded);
+        let encoded = original.to_bytes(&feed_id);
+        println!("Encoded: {:?}", encoded);
 
-//         let (decoded, decoded_feed_id) = ProofState::decode_from_hex_string(&hex::encode(&encoded)).unwrap();
-//         println!("Decoded: {:?}", decoded);
+        let (decoded, decoded_feed_id) = ProofState::decode_from_hex_string(&hex::encode(&encoded)).unwrap();
+        println!("Decoded: {:?}", decoded);
 
-//         assert_eq!(original.name, decoded.name);
-//         assert_eq!(original.total_reserves, decoded.total_reserves);
-//         assert_eq!(original.total_token, decoded.total_token);
-//         assert_eq!(original.ripcord, decoded.ripcord);
-//         assert_eq!(original.ripcord_details, decoded.ripcord_details);
-//         assert_eq!(original.timestamp, decoded.timestamp);
-//         assert_eq!(feed_id, decoded_feed_id);
-//     }
-// }
+        assert_eq!(original.name, decoded.name);
+        assert_eq!(original.total_reserves, decoded.total_reserves);
+        assert_eq!(original.total_token, decoded.total_token);
+        assert_eq!(original.ripcord, decoded.ripcord);
+        assert_eq!(original.ripcord_details, decoded.ripcord_details);
+        assert_eq!(original.timestamp, decoded.timestamp);
+        assert_eq!(feed_id, decoded_feed_id);
+    }
+}
