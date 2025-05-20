@@ -70,7 +70,10 @@ impl Transmitter {
 
     pub async fn verify(&self, full_report: &str) -> Result<Signature> {
         let (compressed_report, feed_id) = self.parse_and_compress_hex_report(full_report)?;
-        let feed_id_array: [u8; 32] = feed_id.try_into().expect("feed_id must be 32 bytes");
+        let feed_id_array: [u8; 32] = feed_id
+            .clone()
+            .try_into()
+            .expect("feed_id must be 32 bytes");
         let time_now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap()
@@ -88,8 +91,14 @@ impl Transmitter {
             compressed_proof: proof_state_from_tnf.to_bytes(&feed_id_array),
         };
 
-        println!("compressed_report: {:?}", compressed_report);
-        println!("compressed_proof: {:?}", compressed_proof.compressed_proof);
+        println!(
+            "Transmitter - verify() - build | compressed_report: {:?}",
+            compressed_report
+        );
+        println!(
+            "Transmitter - verify() - build | compressed_proof: {:?}",
+            compressed_proof.compressed_proof
+        );
 
         let verifier_program_id: Pubkey =
             Pubkey::from_str(CHAINLINK_VERIFIER_PROGRAM_ID_DEVNET).unwrap();
@@ -102,10 +111,12 @@ impl Transmitter {
         let (config_account, _) = Pubkey::find_program_address(&[&feed_id], &verifier_program_id);
 
         // This is the PDA for ProofState (owned by oracle_updater)
-        // let (proof_state, _) = Pubkey::find_program_address(&[b"proof"], &self.program.id()); // Make sure this seed matches the on-chain logic
-        let (compressed_proof_account, _) =
-            Pubkey::find_program_address(&[b"proof"], &self.program.id());
+        println!("program.id: {:?}", &self.program.id());
 
+        let (compressed_proof_account, _) =
+            Pubkey::find_program_address(&[b"proof_v2"], &self.program.id());
+        println!("compressed_proof_account: {:?}", &compressed_proof_account);
+        // Make sure this seed matches the on-chain logic
         let user = self.program.payer();
 
         // let proof_state = &mut ctx.accounts.proof_state;
@@ -140,10 +151,11 @@ impl Transmitter {
         let compressed_proof_account: oracle_updater::CompressedProof =
             self.program.account(compressed_proof_account).await?;
 
-        let proof_state = OracleUpdater::ProofState::decode_from_hex_string(&hex::encode(
+        let (proof_state, _) = oracle_updater::ProofState::decode_from_buffer(
             &compressed_proof_account.compressed_proof,
-        ))
+        )
         .unwrap();
+
         println!("🧻 Proof State:");
         println!("  Name: {}", proof_state.name);
         println!("  Total Reserves: {}", proof_state.total_reserves);

@@ -2593,7 +2593,6 @@ dependencies = [
  "chainlink-data-streams-report 1.0.0 (git+https://github.com/smartcontractkit/data-streams-sdk.git)",
  "chainlink_solana_data_streams",
  "hex",
- "tokio",
 ]
 
 [[package]]
