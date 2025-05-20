@@ -206,6 +206,8 @@ impl ProofState {
 
 #[cfg(test)]
 mod tests {
+    use anchor_lang::solana_program::native_token::LAMPORTS_PER_SOL;
+
     use super::*;
     #[test]
     fn test_proof_state_encoding_decoding() {

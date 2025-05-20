@@ -108,7 +108,7 @@ pub mod oracle_updater {
         Ok(())
     }
 
-    pub fn mint(ctx: Context<MintableContext>, amount: u64) -> Result<()> {
+    pub fn update_mintable_amount(ctx: Context<MintableContext>, amount: u64) -> Result<()> {
         let mintable_account = &mut ctx.accounts.mintable_account;
         mintable_account.mintable = mintable_account.mintable.saturating_sub(amount);
         Ok(())
