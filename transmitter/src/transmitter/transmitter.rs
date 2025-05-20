@@ -84,14 +84,12 @@ impl Transmitter {
             timestamp: time_now as i64,
         };
 
-        let hex_proof_state = oracle_updater::HexProofState {
-            hex_string: proof_state_from_tnf.convert_to_hex_string_with_feed_id(&feed_id_array),
+        let compressed_proof = oracle_updater::CompressedProof {
+            compressed_proof: proof_state_from_tnf.to_bytes(&feed_id_array),
         };
-        println!("hex_proof_state: {}", hex_proof_state.hex_string);
 
-        // let can_mint_amount = 2 * LAMPORTS_PER_SOL; // 1 sol in lamports;
-        // let can_burn_amount = 1 * LAMPORTS_PER_SOL; // 1 sol in lamports;
-        // let total_reserves = 13 * LAMPORTS_PER_SOL; // 1 sol in lamports;
+        println!("compressed_report: {:?}", compressed_report);
+        println!("compressed_proof: {:?}", compressed_proof.compressed_proof);
 
         let verifier_program_id: Pubkey =
             Pubkey::from_str(CHAINLINK_VERIFIER_PROGRAM_ID_DEVNET).unwrap();
@@ -105,7 +103,8 @@ impl Transmitter {
 
         // This is the PDA for ProofState (owned by oracle_updater)
         // let (proof_state, _) = Pubkey::find_program_address(&[b"proof"], &self.program.id()); // Make sure this seed matches the on-chain logic
-        let (hex_proof_state, _) = Pubkey::find_program_address(&[b"proof"], &self.program.id());
+        let (compressed_proof_account, _) =
+            Pubkey::find_program_address(&[b"proof"], &self.program.id());
 
         let user = self.program.payer();
 
@@ -119,13 +118,12 @@ impl Transmitter {
                 user,
                 config_account,
                 verifier_program_id,
-                hex_proof_state,
+                compressed_proof: compressed_proof_account,
                 system_program: anchor_client::solana_sdk::system_program::ID,
             })
             .args(oracle_updater::instruction::Verify {
                 signed_report: compressed_report,
-                proof_state_from_tnf,
-                feed_id: feed_id_array,
+                compressed_proof: compressed_proof.compressed_proof,
             })
             .instructions()?
             .remove(0);
@@ -139,24 +137,20 @@ impl Transmitter {
         println!("📍 Instruction: Verify");
         println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
 
-        let hex_proof_account: oracle_updater::HexProof =
-            self.program.account(hex_proof_state).await?;
+        let compressed_proof_account: oracle_updater::CompressedProof =
+            self.program.account(compressed_proof_account).await?;
 
-        let proof_state = OracleUpdater::ProofState::decode_from_hex_string(
-            &mut hex_proof_account.hex_string.as_bytes(),
-        )
+        let proof_state = OracleUpdater::ProofState::decode_from_hex_string(&hex::encode(
+            &compressed_proof_account.compressed_proof,
+        ))
         .unwrap();
         println!("🧻 Proof State:");
         println!("  Name: {}", proof_state.name);
         println!("  Total Reserves: {}", proof_state.total_reserves);
-
         println!("  Total Token: {}", proof_state.total_token);
-        println!("  Ripcord: {}", proof_state_account.ripcord);
-        println!(
-            "  Ripcord Details: {:?}",
-            proof_state_account.ripcord_details
-        );
-        println!("  Timestamp: {}", proof_state_account.timestamp);
+        println!("  Ripcord: {}", proof_state.ripcord);
+        println!("  Ripcord Details: {:?}", proof_state.ripcord_details);
+        println!("  Timestamp: {}", proof_state.timestamp);
 
         Ok(tx)
     }

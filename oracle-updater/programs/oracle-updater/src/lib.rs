@@ -22,8 +22,9 @@ pub mod oracle_updater {
     pub fn verify(
         ctx: Context<ExampleProgramContext>,
         signed_report: Vec<u8>,
-        proof_state_from_tnf: ProofState,
-        feed_id: [u8; 32],
+        compressed_proof: Vec<u8>,
+        // proof_state_from_tnf: ProofState,
+        // feed_id: [u8; 32],
         // can_mint_amount: u64,
         // can_burn_amount: u64,
         // total_reserves: u64,
@@ -61,30 +62,10 @@ pub mod oracle_updater {
             let report = ReportDataV3::decode(&return_data)
                 .map_err(|_| error!(CustomError::InvalidReportData))?;
 
-            // Report structure format:
-            // {
-            //   "name": "Display Name",
-            //   "totalReserve": "1000000.00",
-            //   "totalToken": "900000.00",
-            //   "ripcord": false,      // Indicates if system should prevent onchain updates
-            //   "ripcordDetails": [],  // Additional details for ripcord state
-            //   "timestamp": "2024-08-02T12:00:00.000Z"
-            // }
-            
-            let hex_proof = proof_state_from_tnf.convert_to_hex_string_with_feed_id(&feed_id);
-            let hex_proof_string= &mut ctx.accounts.hex_proof_state;
-            hex_proof_string.hex_string = hex_proof.clone();
-            // The ProofState struct below mirrors this structure
-            let proof_state = &mut ctx.accounts.hex_proof_state;
 
-    
-            // proof_state.name = "Proof of Reserves".to_string();
-            // proof_state.total_reserves = proof_state_from_tnf.total_reserves;
-            // proof_state.total_token = proof_state_from_tnf.total_token;
-            // proof_state.ripcord = proof_state_from_tnf.ripcord;
-            // proof_state.ripcord_details = proof_state_from_tnf.ripcord_details;
-            // proof_state.timestamp = report.observations_timestamp as i64;
-
+            // The ProofState struct compressed must be constructed prior
+            let compressed_proof_account = &mut ctx.accounts.compressed_proof;
+            compressed_proof_account.compressed_proof = compressed_proof;
             // Log report fields
             msg!("FeedId: {}", report.feed_id);
             msg!("Valid from timestamp: {}", report.valid_from_timestamp);
@@ -97,8 +78,8 @@ pub mod oracle_updater {
             msg!("Ask: {}", report.ask);
 
             // // log the proof state
-            msg!("Proof State: {:?}", proof_state);
-            msg!("hex_proof {:?}", hex_proof.clone());
+            msg!("Compressed Proof: {:?}", compressed_proof_account.compressed_proof.clone());
+            
         } else {
             msg!("No report data found!");
             return Err(error!(CustomError::NoReportData));
@@ -151,11 +132,20 @@ pub struct ExampleProgramContext<'info> {
         init_if_needed,
         seeds=[b"proof"],
         bump, payer = user,        
-        space = 8 + std::mem::size_of::<HexProof>()
+        space = 8 + std::mem::size_of::<CompressedProof>()
     )]
-    pub hex_proof_state: Account<'info, HexProof>,
+    pub compressed_proof: Account<'info, CompressedProof>,
     pub system_program: Program<'info, System>,
 }
+
+
+#[account]
+#[derive(Debug)]
+pub struct CompressedProof {
+    // Store as raw bytes intead of 
+    pub compressed_proof: Vec<u8>,
+}
+
 
 // The report structure from the TNF should look like this:
 // {
@@ -167,15 +157,6 @@ pub struct ExampleProgramContext<'info> {
 //     "timestamp": "2024-08-02T12:00:00.000Z"
 //   }
 // Therefore let us emulate its structure in the ProofState struct
-
-#[account]
-#[derive(Debug)]
-pub struct HexProof {
-    // Store as raw bytes intead of 
-    pub hex_string: String,
-}
-
-
 
 #[account]
 #[derive(Debug)]
@@ -192,8 +173,9 @@ pub struct ProofState {
 impl ProofState {
 
     pub const DEFAULT_FEED_ID: &'static str = "0x000359843a543ee2fe414dc14c7e7920ef10f4372990b79d6361cdc0dd1ba782";
-
-    pub fn convert_to_hex_string_with_feed_id(&self, feed_id: &[u8; 32]) -> String {
+    
+    pub fn to_bytes(&self, feed_id: &[u8; 32]) -> Vec<u8> {
+    // pub fn convert_to_hex_string_with_feed_id(&self, feed_id: &[u8; 32]) -> String {
         let mut bytes = Vec::new();
     
         // 👇 First 32 bytes must be feed_id
@@ -217,40 +199,35 @@ impl ProofState {
         }
     
         bytes.extend_from_slice(&self.timestamp.to_le_bytes());
-    
-        hex::encode(bytes)
+        bytes
+        // hex::encode(bytes)
     }
     
     
-    pub fn convert_to_hex_string(&self) -> String {
-        let mut bytes = Vec::new();
+    // pub fn convert_to_hex_string(&self) -> String {
+    //     let mut bytes = Vec::new();
+    //     // Serialize name: length + utf-8 bytes
+    //     let name_bytes = self.name.as_bytes();
+    //     bytes.extend_from_slice(&(name_bytes.len() as u32).to_le_bytes());
+    //     bytes.extend_from_slice(name_bytes);
+    //     // total_reserves and total_token: u64
+    //     bytes.extend_from_slice(&self.total_reserves.to_le_bytes());
+    //     bytes.extend_from_slice(&self.total_token.to_le_bytes());
+    //     // ripcord: bool as u8
+    //     bytes.push(self.ripcord as u8);
+    //     // ripcord_details: Vec<String>
+    //     bytes.extend_from_slice(&(self.ripcord_details.len() as u32).to_le_bytes());
+    //     for detail in &self.ripcord_details {
+    //         let detail_bytes = detail.as_bytes();
+    //         bytes.extend_from_slice(&(detail_bytes.len() as u32).to_le_bytes());
+    //         bytes.extend_from_slice(detail_bytes);
+    //     }
+    //     // timestamp: i64
+    //     bytes.extend_from_slice(&self.timestamp.to_le_bytes());
+    //     hex::encode(bytes)
+    // }
 
-        // Serialize name: length + utf-8 bytes
-        let name_bytes = self.name.as_bytes();
-        bytes.extend_from_slice(&(name_bytes.len() as u32).to_le_bytes());
-        bytes.extend_from_slice(name_bytes);
-
-        // total_reserves and total_token: u64
-        bytes.extend_from_slice(&self.total_reserves.to_le_bytes());
-        bytes.extend_from_slice(&self.total_token.to_le_bytes());
-
-        // ripcord: bool as u8
-        bytes.push(self.ripcord as u8);
-
-        // ripcord_details: Vec<String>
-        bytes.extend_from_slice(&(self.ripcord_details.len() as u32).to_le_bytes());
-        for detail in &self.ripcord_details {
-            let detail_bytes = detail.as_bytes();
-            bytes.extend_from_slice(&(detail_bytes.len() as u32).to_le_bytes());
-            bytes.extend_from_slice(detail_bytes);
-        }
-
-        // timestamp: i64
-        bytes.extend_from_slice(&self.timestamp.to_le_bytes());
-
-        hex::encode(bytes)
-    }
-
+    
     pub fn decode_from_hex_string(hex: &str) -> Result<(Self, [u8; 32])> {
         let clean = hex.strip_prefix("0x").unwrap_or(hex);
         let bytes = hex::decode(clean).map_err(|_| error!(CustomError::InvalidHexString))?;
@@ -323,10 +300,10 @@ mod tests {
             timestamp: 1716153600,
         };
 
-        let encoded = original.convert_to_hex_string_with_feed_id(&feed_id);
-        println!("Encoded: {}", encoded);
+        let encoded = original.to_bytes(&feed_id);
+        println!("Encoded: {:?}", encoded);
 
-        let (decoded, decoded_feed_id) = ProofState::decode_from_hex_string(&encoded).unwrap();
+        let (decoded, decoded_feed_id) = ProofState::decode_from_hex_string(&hex::encode(&encoded)).unwrap();
         println!("Decoded: {:?}", decoded);
 
         assert_eq!(original.name, decoded.name);
