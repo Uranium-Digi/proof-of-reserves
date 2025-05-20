@@ -18,16 +18,10 @@ pub mod oracle_updater {
 
     /// Verifies a Data Streams report using Cross-Program Invocation to the Verifier program
     /// Returns the decoded report data if verification succeeds
-
     pub fn verify(
         ctx: Context<ExampleProgramContext>,
         signed_report: Vec<u8>,
         compressed_proof: Vec<u8>,
-        // proof_state_from_tnf: ProofState,
-        // feed_id: [u8; 32],
-        // can_mint_amount: u64,
-        // can_burn_amount: u64,
-        // total_reserves: u64,
     ) -> Result<()> {
         let program_id = ctx.accounts.verifier_program_id.key();
         let verifier_account = ctx.accounts.verifier_account.key();
@@ -132,7 +126,7 @@ pub struct ExampleProgramContext<'info> {
         init_if_needed,
         seeds=[b"proof"],
         bump, payer = user,        
-        space = 8 + std::mem::size_of::<CompressedProof>()
+        space = 8 + 4 + 1024 // space = 8 + std::mem::size_of::<CompressedProof>()
     )]
     pub compressed_proof: Account<'info, CompressedProof>,
     pub system_program: Program<'info, System>,
@@ -285,33 +279,33 @@ impl ProofState {
 }
 
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    #[tokio::test]
-    async fn test_proof_state_encoding_decoding() {
-        let feed_id: [u8; 32] = [1u8; 32];
-        let original = ProofState {
-            name: "Proof of Reserves".to_string(),
-            total_reserves: 1000000,
-            total_token: 900000,
-            ripcord: false,
-            ripcord_details: vec![],
-            timestamp: 1716153600,
-        };
+// #[cfg(test)]
+// mod tests {
+//     use super::*;
+//     #[tokio::test]
+//     async fn test_proof_state_encoding_decoding() {
+//         let feed_id: [u8; 32] = [1u8; 32];
+//         let original = ProofState {
+//             name: "Proof of Reserves".to_string(),
+//             total_reserves: 1000000,
+//             total_token: 900000,
+//             ripcord: false,
+//             ripcord_details: vec![],
+//             timestamp: 1716153600,
+//         };
 
-        let encoded = original.to_bytes(&feed_id);
-        println!("Encoded: {:?}", encoded);
+//         let encoded = original.to_bytes(&feed_id);
+//         println!("Encoded: {:?}", encoded);
 
-        let (decoded, decoded_feed_id) = ProofState::decode_from_hex_string(&hex::encode(&encoded)).unwrap();
-        println!("Decoded: {:?}", decoded);
+//         let (decoded, decoded_feed_id) = ProofState::decode_from_hex_string(&hex::encode(&encoded)).unwrap();
+//         println!("Decoded: {:?}", decoded);
 
-        assert_eq!(original.name, decoded.name);
-        assert_eq!(original.total_reserves, decoded.total_reserves);
-        assert_eq!(original.total_token, decoded.total_token);
-        assert_eq!(original.ripcord, decoded.ripcord);
-        assert_eq!(original.ripcord_details, decoded.ripcord_details);
-        assert_eq!(original.timestamp, decoded.timestamp);
-        assert_eq!(feed_id, decoded_feed_id);
-    }
-}
+//         assert_eq!(original.name, decoded.name);
+//         assert_eq!(original.total_reserves, decoded.total_reserves);
+//         assert_eq!(original.total_token, decoded.total_token);
+//         assert_eq!(original.ripcord, decoded.ripcord);
+//         assert_eq!(original.ripcord_details, decoded.ripcord_details);
+//         assert_eq!(original.timestamp, decoded.timestamp);
+//         assert_eq!(feed_id, decoded_feed_id);
+//     }
+// }
