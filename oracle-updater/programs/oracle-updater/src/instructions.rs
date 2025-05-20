@@ -211,9 +211,9 @@ mod tests {
     fn test_proof_state_encoding_decoding() {
         let feed_id: [u8; 32] = [1u8; 32];
         let original = ProofState {
-            name: "Proof of Reserves".to_string(),
-            total_reserves: 1000000,
-            total_token: 900000,
+            name: "Uranium Proof of Reserves".to_string(),
+            total_reserves: 13 * 10u64.pow(6) * LAMPORTS_PER_SOL,
+            total_token: 12 * 10u64.pow(6) * LAMPORTS_PER_SOL,
             ripcord: false,
             ripcord_details: vec![],
             timestamp: 1716153600,
