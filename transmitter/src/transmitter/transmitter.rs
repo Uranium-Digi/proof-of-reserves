@@ -4,7 +4,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use anchor_client::solana_sdk::lamports;
 use anchor_client::solana_sdk::native_token::LAMPORTS_PER_SOL;
 use anchor_client::solana_sdk::signature::Signature;
-use anchor_client::{Program, solana_sdk::signature::Keypair};
+use anchor_client::{solana_sdk::signature::Keypair, Program};
 use anchor_lang::prelude::Pubkey;
 use anyhow::{Context, Result};
 use oracle_updater::program::OracleUpdater;
@@ -15,9 +15,7 @@ use oracle_updater;
 
 use snap::raw::Encoder;
 
-use crate::utils;
-
-use crate::utils::oracle_updater_loader::{RouteType, load_oracle_updater};
+use crate::utils::oracle_updater_loader::{load_oracle_updater, RouteType};
 
 pub const CHAINLINK_VERIFIER_PROGRAM_ID_DEVNET: &str =
     "Gt9S41PtjR58CbG9JhJ3J6vxesqrNAswbWYbLNTMZA3c";
