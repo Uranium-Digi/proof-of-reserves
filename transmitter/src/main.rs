@@ -5,8 +5,8 @@ use modes::websocket;
 use transmitter::transmitter::Transmitter;
 use utils::wallet_loader::load_funding_wallet;
 
-mod transmitter;
-mod utils;
+pub mod transmitter;
+pub mod utils;
 
 // use crate::verifier::loader::OracleUpdaterProgram;
 use anchor_client::solana_sdk::{commitment_config::CommitmentConfig, signer::Signer};
