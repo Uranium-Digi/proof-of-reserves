@@ -13,12 +13,15 @@ pub fn get_rpc_url() -> Result<String> {
     Ok(rpc_url)
 }
 
-pub fn get_client_and_provider() -> Result<(Client<Rc<Keypair>>, Client<Rc<Keypair>>)> {
-    let rpc_url = get_rpc_url()?;
+pub fn get_client_and_provider(
+    cluster: Option<Cluster>,
+) -> Result<(Client<Rc<Keypair>>, Client<Rc<Keypair>>)> {
     let wallet = load_funding_wallet()?;
-    let cluster = Cluster::Custom(rpc_url.clone(), rpc_url);
+    // let rpc_url = get_rpc_url()?;
+    // let cluster = cluster.unwrap_or(Cluster::Custom(rpc_url.clone(), rpc_url));
+    let cluster = cluster.unwrap_or(Cluster::Devnet);
 
-    let client = Client::new(Cluster::Devnet, Rc::clone(&wallet));
+    let client = Client::new(cluster.clone(), Rc::clone(&wallet));
     //  We can also use the provider to create the program
     let commitment = CommitmentConfig::confirmed();
     let provider = Client::new_with_options(cluster, Rc::clone(&wallet), commitment);

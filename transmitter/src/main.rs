@@ -1,4 +1,5 @@
 mod modes;
+use anchor_client::Cluster;
 use modes::directapi;
 use modes::websocket;
 
@@ -20,8 +21,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     dotenv::dotenv().ok(); // loads .env file automatically
 
     // let report = directapi::run().await?;
-
-    let transmitter = Transmitter::new()?;
+    let cluster = Some(Cluster::Devnet);
+    let transmitter = Transmitter::new(cluster)?;
     // let report = websocket::run();
 
     websocket::run(&transmitter).await?;

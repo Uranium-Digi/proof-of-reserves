@@ -4,9 +4,9 @@ use std::{env, fs::File};
 
 use std::str::FromStr;
 
-use anchor_client::Program;
 use anchor_client::solana_sdk::commitment_config::CommitmentConfig;
 use anchor_client::solana_sdk::signature::Keypair;
+use anchor_client::{Cluster, Program};
 use anchor_lang::prelude::Pubkey;
 use anyhow::Result;
 use serde_json::{self, Value};
@@ -44,8 +44,11 @@ pub fn load_oracle_updater_programId() -> Result<Pubkey> {
     Ok(program_id)
 }
 
-pub fn load_oracle_updater(route_type: RouteType) -> Result<(Program<Rc<Keypair>>, Pubkey)> {
-    let (client, provider) = get_client_and_provider()?;
+pub fn load_oracle_updater(
+    cluster: Option<Cluster>,
+    route_type: RouteType,
+) -> Result<(Program<Rc<Keypair>>, Pubkey)> {
+    let (client, provider) = get_client_and_provider(cluster)?;
 
     let program_id = load_oracle_updater_programId()?;
     let program: Program<Rc<Keypair>>;

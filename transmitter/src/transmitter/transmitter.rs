@@ -4,6 +4,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use anchor_client::solana_sdk::lamports;
 use anchor_client::solana_sdk::native_token::LAMPORTS_PER_SOL;
 use anchor_client::solana_sdk::signature::Signature;
+use anchor_client::Cluster;
 use anchor_client::{solana_sdk::signature::Keypair, Program};
 use anchor_lang::prelude::Pubkey;
 use anyhow::{Context, Result};
@@ -30,8 +31,8 @@ pub struct Transmitter {
 }
 
 impl Transmitter {
-    pub fn new() -> Result<Self> {
-        let (program, program_id) = load_oracle_updater(RouteType::default())?;
+    pub fn new(cluster: Option<Cluster>) -> Result<Self> {
+        let (program, program_id) = load_oracle_updater(cluster, RouteType::default())?;
 
         println!("program_id: {}", program_id);
 
