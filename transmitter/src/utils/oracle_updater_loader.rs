@@ -47,8 +47,9 @@ pub fn load_oracle_updater_programId() -> Result<Pubkey> {
 pub fn load_oracle_updater(
     cluster: Option<Cluster>,
     route_type: RouteType,
+    wallet_path_name: Option<String>,
 ) -> Result<(Program<Rc<Keypair>>, Pubkey)> {
-    let (client, provider) = get_client_and_provider(cluster)?;
+    let (client, provider) = get_client_and_provider(cluster, wallet_path_name)?;
 
     let program_id = load_oracle_updater_programId()?;
     let program: Program<Rc<Keypair>>;

@@ -31,8 +31,9 @@ pub struct Transmitter {
 }
 
 impl Transmitter {
-    pub fn new(cluster: Option<Cluster>) -> Result<Self> {
-        let (program, program_id) = load_oracle_updater(cluster, RouteType::default())?;
+    pub fn new(cluster: Option<Cluster>, wallet_path_name: Option<String>) -> Result<Self> {
+        let (program, program_id) =
+            load_oracle_updater(cluster, RouteType::default(), wallet_path_name)?;
 
         println!("program_id: {}", program_id);
 

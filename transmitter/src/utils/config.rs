@@ -15,8 +15,10 @@ pub fn get_rpc_url() -> Result<String> {
 
 pub fn get_client_and_provider(
     cluster: Option<Cluster>,
+    wallet_path: Option<String>,
 ) -> Result<(Client<Rc<Keypair>>, Client<Rc<Keypair>>)> {
-    let wallet = load_funding_wallet()?;
+    let wallet = load_funding_wallet(wallet_path)?;
+
     // let rpc_url = get_rpc_url()?;
     // let cluster = cluster.unwrap_or(Cluster::Custom(rpc_url.clone(), rpc_url));
     let cluster = cluster.unwrap_or(Cluster::Devnet);

@@ -22,7 +22,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // let report = directapi::run().await?;
     let cluster = Some(Cluster::Devnet);
-    let transmitter = Transmitter::new(cluster)?;
+    let transmitter = Transmitter::new(cluster, None)?;
     // let report = websocket::run();
 
     websocket::run(&transmitter).await?;
