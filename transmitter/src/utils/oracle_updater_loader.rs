@@ -26,8 +26,8 @@ impl Default for RouteType {
 }
 
 pub fn load_oracle_updater_programId() -> Result<Pubkey> {
-    // let idl_path = "../oracle-updater/target/idl/oracle_updater.json";
-    let idl_path = env::var("ORACLE_UPDATER_IDL_PATH").unwrap();
+    let idl_path = "../oracle-updater/target/idl/oracle_updater.json";
+    // let idl_path = env::var("ORACLE_UPDATER_IDL_PATH").unwrap();
     println!("idl_path: {}", idl_path);
     let file =
         File::open(idl_path).map_err(|e| anyhow::anyhow!("Failed to open IDL file: {}", e))?;
