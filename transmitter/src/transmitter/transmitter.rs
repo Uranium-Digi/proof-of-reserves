@@ -1,4 +1,5 @@
 use std::str::FromStr;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use anchor_client::solana_sdk::lamports;
 use anchor_client::solana_sdk::native_token::LAMPORTS_PER_SOL;
@@ -6,6 +7,7 @@ use anchor_client::solana_sdk::signature::Signature;
 use anchor_client::{Program, solana_sdk::signature::Keypair};
 use anchor_lang::prelude::Pubkey;
 use anyhow::{Context, Result};
+use oracle_updater::program::OracleUpdater;
 
 use std::rc::Rc;
 
@@ -21,6 +23,8 @@ pub const CHAINLINK_VERIFIER_PROGRAM_ID_DEVNET: &str =
     "Gt9S41PtjR58CbG9JhJ3J6vxesqrNAswbWYbLNTMZA3c";
 pub const ACCESS_CONTROLLER: &str = "2k3DsgwBoqrnvXKVvd7jX7aptNxdcRBdcd5HkYsGgbrb";
 pub const DEFAULT_HEX_STRING: &str = "0x00064f2cd1be62b7496ad4897b984db99243e0921906f66ded15149d993ef42c000000000000000000000000000000000000000000000000000000000103c90c000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000e000000000000000000000000000000000000000000000000000000000000002200000000000000000000000000000000000000000000000000000000000000280000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001200003684ea93c43ed7bd00ab3bb189bb62f880436589f1ca58b599cd97d6007fb0000000000000000000000000000000000000000000000000000000067570fa40000000000000000000000000000000000000000000000000000000067570fa400000000000000000000000000000000000000000000000000004c6ac85bf854000000000000000000000000000000000000000000000000002e1bf13b772a9c0000000000000000000000000000000000000000000000000000000067586124000000000000000000000000000000000000000000000000002bb4cf7662949c000000000000000000000000000000000000000000000000002bae04e2661000000000000000000000000000000000000000000000000000002bb6a26c3fbeb80000000000000000000000000000000000000000000000000000000000000002af5e1b45dd8c84b12b4b58651ff4173ad7ca3f5d7f5374f077f71cce020fca787124749ce727634833d6ca67724fd912535c5da0f42fa525f46942492458f2c2000000000000000000000000000000000000000000000000000000000000000204e0bfa6e82373ae7dff01a305b72f1debe0b1f942a3af01bad18e0dc78a599f10bc40c2474b4059d43a591b75bdfdd80aafeffddfd66d0395cca2fdeba1673d";
+pub const DEFAULT_FEED_ID: &'static str =
+    "0x000359843a543ee2fe414dc14c7e7920ef10f4372990b79d6361cdc0dd1ba782";
 
 pub struct Transmitter {
     pub program: Program<Rc<Keypair>>,
@@ -66,10 +70,35 @@ impl Transmitter {
 
     pub async fn verify(&self, full_report: &str) -> Result<Signature> {
         let (compressed_report, feed_id) = self.parse_and_compress_hex_report(full_report)?;
+        let feed_id_array: [u8; 32] = feed_id
+            .clone()
+            .try_into()
+            .expect("feed_id must be 32 bytes");
+        let time_now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+        let proof_state_from_tnf = oracle_updater::ProofState {
+            name: "Uranium Proof of Reserves".to_string(),
+            total_reserves: 13 * LAMPORTS_PER_SOL,
+            total_token: 12 * LAMPORTS_PER_SOL,
+            ripcord: false,
+            ripcord_details: vec![],
+            timestamp: time_now as i64,
+        };
 
-        let can_mint_amount = 1 * LAMPORTS_PER_SOL; // 1 sol in lamports;
-        let can_burn_amount = 1 * LAMPORTS_PER_SOL; // 1 sol in lamports;
-        let total_reserves = 1 * LAMPORTS_PER_SOL; // 1 sol in lamports;
+        let compressed_proof = oracle_updater::CompressedProof {
+            compressed_proof: proof_state_from_tnf.to_bytes(&feed_id_array),
+        };
+
+        println!(
+            "Transmitter - verify() - build | compressed_report: {:?}",
+            compressed_report
+        );
+        println!(
+            "Transmitter - verify() - build | compressed_proof: {:?}",
+            compressed_proof.compressed_proof
+        );
 
         let verifier_program_id: Pubkey =
             Pubkey::from_str(CHAINLINK_VERIFIER_PROGRAM_ID_DEVNET).unwrap();
@@ -82,8 +111,12 @@ impl Transmitter {
         let (config_account, _) = Pubkey::find_program_address(&[&feed_id], &verifier_program_id);
 
         // This is the PDA for ProofState (owned by oracle_updater)
-        let (proof_state, _) = Pubkey::find_program_address(&[b"proof"], &self.program.id()); // Make sure this seed matches the on-chain logic
+        println!("program.id: {:?}", &self.program.id());
 
+        let (compressed_proof_account, _) =
+            Pubkey::find_program_address(&[b"proof_v2"], &self.program.id());
+        println!("compressed_proof_account: {:?}", &compressed_proof_account);
+        // Make sure this seed matches the on-chain logic
         let user = self.program.payer();
 
         // let proof_state = &mut ctx.accounts.proof_state;
@@ -96,14 +129,12 @@ impl Transmitter {
                 user,
                 config_account,
                 verifier_program_id,
-                proof_state,
+                compressed_proof: compressed_proof_account,
                 system_program: anchor_client::solana_sdk::system_program::ID,
             })
             .args(oracle_updater::instruction::Verify {
                 signed_report: compressed_report,
-                can_mint_amount,
-                can_burn_amount,
-                total_reserves,
+                compressed_proof: compressed_proof.compressed_proof,
             })
             .instructions()?
             .remove(0);
@@ -117,22 +148,21 @@ impl Transmitter {
         println!("📍 Instruction: Verify");
         println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
 
-        let proof_state_account: oracle_updater::ProofState =
-            self.program.account(proof_state).await?;
+        let compressed_proof_account: oracle_updater::CompressedProof =
+            self.program.account(compressed_proof_account).await?;
+
+        let (proof_state, _) = oracle_updater::ProofState::decode_from_buffer(
+            &compressed_proof_account.compressed_proof,
+        )
+        .unwrap();
 
         println!("🧻 Proof State:");
-        println!(
-            "  Valid From Timestamp: {}",
-            proof_state_account.valid_from_timestamp
-        );
-        println!(
-            "  Observations Timestamp: {}",
-            proof_state_account.observations_timestamp
-        );
-        println!("  Expires At: {}", proof_state_account.expires_at);
-        println!("  Can Mint: {}", proof_state_account.can_mint_amount);
-        println!("  Can Burn: {}", proof_state_account.can_burn_amount);
-        println!("  Total Reserves: {}", proof_state_account.total_reserves);
+        println!("  Name: {}", proof_state.name);
+        println!("  Total Reserves: {}", proof_state.total_reserves);
+        println!("  Total Token: {}", proof_state.total_token);
+        println!("  Ripcord: {}", proof_state.ripcord);
+        println!("  Ripcord Details: {:?}", proof_state.ripcord_details);
+        println!("  Timestamp: {}", proof_state.timestamp);
 
         Ok(tx)
     }

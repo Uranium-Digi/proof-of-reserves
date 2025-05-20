@@ -7,21 +7,25 @@ use anchor_lang::solana_program::{
 use chainlink_data_streams_report::report::v3::ReportDataV3;
 use chainlink_solana_data_streams::VerifierInstructions;
 
+use hex;
+pub mod instructions;
+use instructions::*;
+
+// Re-export types for external use
+pub use instructions::{CompressedProof, Mintable, ProofState};
+
+// https://docs.chain.link/data-streams/tutorials/streams-direct/solana-onchain-report-verification
 declare_id!("8y6CXiQsLVXa98ASAeC9oMmo9GV7n7Z2mCwUJysYjUYs");
 
 #[program]
 pub mod oracle_updater {
     use super::*;
-
     /// Verifies a Data Streams report using Cross-Program Invocation to the Verifier program
     /// Returns the decoded report data if verification succeeds
-
     pub fn verify(
         ctx: Context<ExampleProgramContext>,
         signed_report: Vec<u8>,
-        can_mint_amount: u64,
-        can_burn_amount: u64,
-        total_reserves: u64,
+        compressed_proof: Vec<u8>,
     ) -> Result<()> {
         let program_id = ctx.accounts.verifier_program_id.key();
         let verifier_account = ctx.accounts.verifier_account.key();
@@ -56,15 +60,9 @@ pub mod oracle_updater {
             let report = ReportDataV3::decode(&return_data)
                 .map_err(|_| error!(CustomError::InvalidReportData))?;
 
-            let proof_state = &mut ctx.accounts.proof_state;
-
-            proof_state.valid_from_timestamp = report.valid_from_timestamp;
-            proof_state.observations_timestamp = report.observations_timestamp;
-            proof_state.expires_at = report.expires_at;
-            proof_state.can_mint_amount = can_mint_amount;
-            proof_state.can_burn_amount = can_burn_amount;
-            proof_state.total_reserves = total_reserves;
-
+            // The ProofState struct compressed must be constructed prior
+            let compressed_proof_account = &mut ctx.accounts.compressed_proof;
+            compressed_proof_account.compressed_proof = compressed_proof;
             // Log report fields
             msg!("FeedId: {}", report.feed_id);
             msg!("Valid from timestamp: {}", report.valid_from_timestamp);
@@ -75,6 +73,23 @@ pub mod oracle_updater {
             msg!("Benchmark Price: {}", report.benchmark_price);
             msg!("Bid: {}", report.bid);
             msg!("Ask: {}", report.ask);
+
+            // // log the proof state
+            msg!(
+                "Compressed Proof: {:?}",
+                compressed_proof_account.compressed_proof.clone()
+            );
+
+            let proof_state = compressed_proof_account.decode()?;
+            msg!("Proof State: {:?}", proof_state);
+
+            let mintable_amount = compressed_proof_account.calculate_mintable()?;
+            msg!("Mintable amount: {}", mintable_amount);
+
+            let mintable_account = &mut ctx.accounts.mintable_account;
+            mintable_account.mintable = mintable_amount;
+
+            msg!("Mintable Account: {:?}", mintable_account);
         } else {
             msg!("No report data found!");
             return Err(error!(CustomError::NoReportData));
@@ -85,79 +100,17 @@ pub mod oracle_updater {
     //     msg!("Greetings from: {:?}", ctx.program_id);
     //     Ok(())
     // }
-}
 
-#[derive(Accounts)]
-pub struct Initialize {}
+    // tells you amount you can mint
+    pub fn mintable_amount(ctx: Context<MintableContext>) -> Result<()> {
+        let mintable_account = &ctx.accounts.mintable_account;
+        msg!("Mintable amount: {}", mintable_account.mintable);
+        Ok(())
+    }
 
-#[error_code]
-pub enum CustomError {
-    #[msg("No valid report data found")]
-    NoReportData,
-    #[msg("Invalid report data format")]
-    InvalidReportData,
-}
-
-#[derive(Accounts)]
-pub struct ExampleProgramContext<'info> {
-    /// The Verifier Account stores the DON's public keys and other verification parameters.
-    /// This account must match the PDA derived from the verifier program.
-    /// CHECK: The account is validated by the verifier program.
-    pub verifier_account: AccountInfo<'info>,
-    /// The Access Controller Account
-    /// /// CHECK: The account strudcture is validated by the verifier program.
-    pub access_controller: AccountInfo<'info>,
-    /// The account that signs the transaction.
-
-    #[account(mut)]
-    pub user: Signer<'info>,
-    // pub user: Signer<'info>,
-    /// The Config Account is a PDA derived from a signed report
-    /// CHECK: the account is validated by the verifier program.
-    pub config_account: AccountInfo<'info>,
-    /// The Verifier Program ID specifies the target Chainlink Data Streams Verifier program
-    /// CHECK: The program ID is validated by the verifier program.
-    pub verifier_program_id: AccountInfo<'info>,
-    /// PDA that stores the last verified report
-    #[account(
-        init_if_needed,
-        seeds=[b"proof"],
-        bump, payer = user,        
-        space = 8 + std::mem::size_of::<ProofState>()
-    )]
-    pub proof_state: Account<'info, ProofState>,
-    pub system_program: Program<'info, System>,
-}
-
-#[account]
-pub struct ProofState {
-    // pub feed_id: ReportDataV3::feed_id::ID,
-    // pub benchmark_price: u128,
-    pub valid_from_timestamp: u32,
-    pub observations_timestamp: u32,
-    pub expires_at: u32,
-    pub can_mint_amount: u64,
-    pub can_burn_amount: u64,
-    pub total_reserves: u64,
-}
-
-impl ProofState {
-    // function to build proof state from a report
-    // pub fn build_proof_state(
-    //     report: &ReportDataV3,
-    //     can_mint_amount: u128,
-    //     can_burn_amount: u128,
-    //     total_reserves: u128,
-    // ) -> Self {
-    //     Self {
-    //         // feed_id: report.feed_id,
-    //         // benchmark_price: report.benchmark_price,
-    //         valid_from_timestamp: report.valid_from_timestamp,
-    //         observations_timestamp: report.observations_timestamp,
-    //         expires_at: report.expires_at,
-    //         can_mint_amount,
-    //         can_burn_amount,
-    //         total_reserves,
-    //     }
-    // }
+    pub fn mint(ctx: Context<MintableContext>, amount: u64) -> Result<()> {
+        let mintable_account = &mut ctx.accounts.mintable_account;
+        mintable_account.mintable = mintable_account.mintable.saturating_sub(amount);
+        Ok(())
+    }
 }
