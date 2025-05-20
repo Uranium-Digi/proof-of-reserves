@@ -80,15 +80,15 @@ impl Transmitter {
             .as_secs();
         let proof_state_from_tnf = oracle_updater::ProofState {
             name: "Uranium Proof of Reserves".to_string(),
-            total_reserves: 13 * LAMPORTS_PER_SOL,
-            total_token: 12 * LAMPORTS_PER_SOL,
+            total_reserves: 13 * 10u64.pow(6) * LAMPORTS_PER_SOL,
+            total_token: 12 * 10u64.pow(6) * LAMPORTS_PER_SOL,
             ripcord: false,
             ripcord_details: vec![],
             timestamp: time_now as i64,
         };
 
         let compressed_proof = oracle_updater::CompressedProof {
-            compressed_proof: proof_state_from_tnf.to_bytes(&feed_id_array),
+            compressed_proof: proof_state_from_tnf.encode(&feed_id_array),
         };
 
         println!(
@@ -114,8 +114,13 @@ impl Transmitter {
         println!("program.id: {:?}", &self.program.id());
 
         let (compressed_proof_account, _) =
-            Pubkey::find_program_address(&[b"proof_v2"], &self.program.id());
+            Pubkey::find_program_address(&[b"proof_v4"], &self.program.id());
         println!("compressed_proof_account: {:?}", &compressed_proof_account);
+
+        let (mintable_account, _) =
+            Pubkey::find_program_address(&[b"mintable_account"], &self.program.id());
+        println!("mintable_account: {:?}", &mintable_account);
+
         // Make sure this seed matches the on-chain logic
         let user = self.program.payer();
 
@@ -130,6 +135,7 @@ impl Transmitter {
                 config_account,
                 verifier_program_id,
                 compressed_proof: compressed_proof_account,
+                mintable_account,
                 system_program: anchor_client::solana_sdk::system_program::ID,
             })
             .args(oracle_updater::instruction::Verify {
@@ -151,10 +157,8 @@ impl Transmitter {
         let compressed_proof_account: oracle_updater::CompressedProof =
             self.program.account(compressed_proof_account).await?;
 
-        let (proof_state, _) = oracle_updater::ProofState::decode_from_buffer(
-            &compressed_proof_account.compressed_proof,
-        )
-        .unwrap();
+        let (proof_state, _) =
+            oracle_updater::ProofState::decode(&compressed_proof_account.compressed_proof).unwrap();
 
         println!("🧻 Proof State:");
         println!("  Name: {}", proof_state.name);
@@ -163,6 +167,12 @@ impl Transmitter {
         println!("  Ripcord: {}", proof_state.ripcord);
         println!("  Ripcord Details: {:?}", proof_state.ripcord_details);
         println!("  Timestamp: {}", proof_state.timestamp);
+
+        let mintable_account: oracle_updater::Mintable =
+            self.program.account(mintable_account).await?;
+
+        println!("🔶  Mintable Account:");
+        println!("    Mintable: {}", mintable_account.mintable);
 
         Ok(tx)
     }
