@@ -1,0 +1,16 @@
+[package]
+name = "proof-of-reserves-tests"
+version = "0.1.0"
+description = "Created with Anchor"
+edition = "2021"
+
+[dependencies]
+tokio = { version = "1", features = ["macros"] }
+anchor-client = { workspace = true, features = ["async"] }
+anchor-spl = { workspace = true }
+solana-sdk = { workspace = true }
+solana-client = { workspace = true }
+
+oracle-updater = { workspace = true }
+transmitter = { workspace = true }
+wrap-uranium = { workspace = true }

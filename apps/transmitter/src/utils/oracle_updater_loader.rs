@@ -25,23 +25,8 @@ impl Default for RouteType {
     }
 }
 
-pub fn load_oracle_updater_programId() -> Result<Pubkey> {
-    let idl_path = "../oracle-updater/target/idl/oracle_updater.json";
-    // let idl_path = env::var("ORACLE_UPDATER_IDL_PATH").unwrap();
-    println!("idl_path: {}", idl_path);
-    let file =
-        File::open(idl_path).map_err(|e| anyhow::anyhow!("Failed to open IDL file: {}", e))?;
-    let reader = BufReader::new(file);
-    let idl: Value = serde_json::from_reader(reader)
-        .map_err(|e| anyhow::anyhow!("Failed to parse IDL JSON: {}", e))?;
-
-    let program_id_str = idl["address"]
-        .as_str()
-        .ok_or_else(|| anyhow::anyhow!("Program ID not found in IDL metadata"))?;
-    let program_id = Pubkey::from_str(program_id_str)
-        .map_err(|e| anyhow::anyhow!("Failed to parse program ID: {}", e))?;
-
-    Ok(program_id)
+pub fn load_oracle_updater_program_id() -> Pubkey {
+    oracle_updater::ID
 }
 
 pub fn load_oracle_updater(
@@ -51,7 +36,7 @@ pub fn load_oracle_updater(
 ) -> Result<(Program<Rc<Keypair>>, Pubkey)> {
     let (client, provider) = get_client_and_provider(cluster, wallet_path_name)?;
 
-    let program_id = load_oracle_updater_programId()?;
+    let program_id = load_oracle_updater_program_id();
     let program: Program<Rc<Keypair>>;
 
     if route_type == RouteType::Client {
