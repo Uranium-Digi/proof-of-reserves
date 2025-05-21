@@ -3519,6 +3519,8 @@ dependencies = [
  "anchor-client",
  "anchor-lang",
  "anchor-spl",
+ "hex",
+ "hex-literal",
  "oracle-updater",
  "solana-client",
  "solana-program-test",

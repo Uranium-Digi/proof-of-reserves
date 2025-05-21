@@ -1,4 +1,4 @@
-use std::str::FromStr;
+use std::{str::FromStr, time::Duration};
 
 use anchor_client::{
     anchor_lang::solana_program,
@@ -13,8 +13,10 @@ use anchor_spl::{
     },
     token_2022::spl_token_2022::{self, instruction::transfer_checked},
 };
+use hex_literal::hex;
 use solana_client::nonblocking::rpc_client::RpcClient;
 use solana_sdk::{
+    bpf_loader_upgradeable,
     instruction::Instruction,
     message::{v0::Message, VersionedMessage},
     native_token::LAMPORTS_PER_SOL,
@@ -24,47 +26,182 @@ use solana_sdk::{
     transaction::VersionedTransaction,
 };
 
-use transmitter::transmitter::transmitter::Transmitter;
+use access_controller::{AccessController, ID};
+use transmitter::transmitter::transmitter::{Transmitter, DEFAULT_HEX_STRING};
 use verifier::state::VerifierAccount;
 
-use crate::common::verifier_test_setup::{VerifierTestSetup, VerifierTestSetupBuilder};
+const WALLET_KEY: &str = "ANCHOR_WALLET";
+
+async fn init_chainlink_verifier(signer: &Keypair) -> Pubkey {
+    let client =
+        Client::new_with_options(Cluster::Localnet, &signer, CommitmentConfig::processed());
+
+    let verifier_program = client.program(verifier::ID).unwrap();
+    let access_controller_program = client.program(access_controller::ID).unwrap();
+    let access_controller_data_account = Keypair::new();
+
+    let rpc = verifier_program.rpc();
+    let space = 8 + std::mem::size_of::<AccessController>();
+    let rent = rpc
+        .get_minimum_balance_for_rent_exemption(space)
+        .await
+        .unwrap();
+    let mut ixs = vec![create_account(
+        &signer.pubkey(),
+        &access_controller_data_account.pubkey(),
+        rent,
+        space as u64,
+        &access_controller::ID,
+    )];
+
+    let mut init_access_controller_ix = access_controller_program
+        .request()
+        .accounts(access_controller::accounts::Initialize {
+            state: access_controller_data_account.pubkey(),
+            owner: signer.pubkey(),
+        })
+        .args(access_controller::instruction::Initialize {})
+        .instructions()
+        .unwrap();
+
+    ixs.append(&mut init_access_controller_ix);
+
+    let mut add_access_ix = access_controller_program
+        .request()
+        .accounts(access_controller::accounts::AddAccess {
+            state: access_controller_data_account.pubkey(),
+            owner: signer.pubkey(),
+            address: signer.pubkey(), // this is the transmitter address
+        })
+        .args(access_controller::instruction::AddAccess {})
+        .instructions()
+        .unwrap();
+
+    ixs.append(&mut add_access_ix);
+
+    let verifier_account = Pubkey::find_program_address(&[b"verifier"], &verifier::ID).0;
+
+    let rpc = verifier_program.rpc();
+    let (verifier_program_data, _) =
+        Pubkey::find_program_address(&[verifier::ID.as_ref()], &bpf_loader_upgradeable::id());
+
+    let mut init_verifier_ix = verifier_program
+        .request()
+        .accounts(verifier::accounts::InitializeContext {
+            owner: signer.pubkey(),
+            verifier_account,
+            program_data: verifier_program_data,
+            program: verifier::ID,
+            system_program: solana_program::system_program::ID,
+        })
+        .args(verifier::instruction::Initialize {})
+        .instructions()
+        .unwrap();
+
+    ixs.append(&mut init_verifier_ix);
+
+    let target_size = 8 + std::mem::size_of::<VerifierAccount>();
+    let mut current_size = VerifierAccount::INIT_SPACE;
+    const REALLOC_INCREMENT: usize = 10 * 1024;
+
+    // Perform reallocation in increments
+    while current_size < target_size {
+        current_size = std::cmp::min(current_size + REALLOC_INCREMENT, target_size);
+
+        let mut realloc_ix = verifier_program
+            .request()
+            .accounts(verifier::accounts::ReallocContext {
+                owner: signer.pubkey(),
+                verifier_account,
+                program_data: verifier_program_data,
+                program: verifier::ID,
+                system_program: solana_program::system_program::ID,
+            })
+            .args(verifier::instruction::ReallocAccount {
+                _len: current_size as u32,
+            })
+            .instructions()
+            .unwrap();
+
+        ixs.append(&mut realloc_ix);
+    }
+
+    let mut init_verifier_data_ix = verifier_program
+        .request()
+        .accounts(verifier::accounts::InitializeAccountDataContext {
+            owner: signer.pubkey(),
+            verifier_account,
+            access_controller: None,
+            program: verifier::ID,
+            program_data: verifier_program_data,
+            system_program: solana_program::system_program::ID,
+        })
+        .args(verifier::instruction::InitializeAccountData {})
+        .instructions()
+        .unwrap();
+
+    ixs.append(&mut init_verifier_data_ix);
+
+    let report_signers: Vec<[u8; 20]> = vec![
+        hex!("6b23132dece4da06571ba9149e2986549cb5fb30"),
+        hex!("72cce7298ae2f6e516be2f2343ebedf863548d12"),
+        hex!("87abf51625b8587a8b331b305d026bb48772a20c"),
+        hex!("dd3210a31d062cada9f37c69305032b7e5594e25"),
+    ];
+
+    let mut set_config_ix = verifier_program
+        .request()
+        .accounts(verifier::accounts::UpdateConfigContext {
+            owner: signer.pubkey(),
+            verifier_account,
+        })
+        .args(verifier::instruction::SetConfigWithActivationTime {
+            signers: report_signers,
+            activation_time: 0,
+            f: 1,
+        })
+        .instructions()
+        .unwrap();
+
+    ixs.append(&mut set_config_ix);
+
+    let signature = send_tx(
+        &rpc,
+        ixs,
+        &signer.pubkey(),
+        &[&signer, &access_controller_data_account],
+    )
+    .await;
+
+    println!("✅ Access Controller initialized, waiting for confirmation...");
+    rpc.confirm_transaction_with_spinner(
+        &signature,
+        &rpc.get_latest_blockhash().await.unwrap(),
+        CommitmentConfig::finalized(),
+    )
+    .await
+    .unwrap();
+
+    access_controller_data_account.pubkey()
+}
 
 #[tokio::test]
 // #[test]
 async fn test_initialize() {
-    let VerifierTestSetup {
-        mut environment_context,
-        verifier_client,
-        access_controller_account_address,
-        ..
-    } = VerifierTestSetupBuilder::new()
-        .program_name("verifier")
-        .program_id(verifier::ID)
-        .access_controller(access_controller::ID)
-        .build()
-        .await;
+    let program_id = Pubkey::from_str("3JmfgAqnGnyh8pXGo8w8bi6MGjfd3Jn4aaKqfJgb7UcQ").unwrap();
+    let anchor_wallet = std::env::var(WALLET_KEY).unwrap();
+    let signer = read_keypair_file(&anchor_wallet).unwrap();
 
-    // Load the verifier account state and deserialize it
-    let verifier_account: VerifierAccount = verifier_client
-        .read_verifier_account(&mut environment_context)
+    // Initialize Chainlink Verifier
+    let access_controller = init_chainlink_verifier(&signer).await;
+
+    // Verify the "DEFAULT_HEX_STRING" report and populate the mintable account
+    Transmitter::new(Some(Cluster::Localnet), Some(WALLET_KEY.to_string()))
+        .unwrap()
+        .verify(DEFAULT_HEX_STRING, Some(access_controller))
         .await
         .unwrap();
 
-    // Check the contract account state matches that passed within the instruction
-    assert_eq!(
-        access_controller_account_address.unwrap(),
-        verifier_account.verifier_account_config.access_controller
-    );
-
-    let program_id = Pubkey::from_str("3JmfgAqnGnyh8pXGo8w8bi6MGjfd3Jn4aaKqfJgb7UcQ").unwrap();
-
-    // let oracle_updater_id;
-    let transmitter =
-        Transmitter::new(Some(Cluster::Localnet), Some("ANCHOR_WALLET".to_string())).unwrap();
-
-    let anchor_wallet = std::env::var("ANCHOR_WALLET").unwrap();
-    println!("Anchor wallet: {}", anchor_wallet);
-    let signer = read_keypair_file(&anchor_wallet).unwrap();
     let owner = Keypair::new();
     let dest = Keypair::new();
     let mint = Keypair::new();
@@ -73,6 +210,7 @@ async fn test_initialize() {
         Client::new_with_options(Cluster::Localnet, &signer, CommitmentConfig::processed());
 
     let program = client.program(program_id).unwrap();
+
     let rpc = program.rpc();
 
     rpc.request_airdrop(&signer.pubkey(), 5 * LAMPORTS_PER_SOL)
@@ -370,6 +508,8 @@ async fn test_initialize() {
     {
         let mintable_account =
             Pubkey::find_program_address(&[b"mintable_account"], &oracle_updater::ID).0;
+
+        println!("mintable_account: {:?}", &mintable_account);
         let mut ixs = vec![];
 
         ixs.append(
@@ -437,9 +577,6 @@ async fn test_initialize() {
 
     println!("UnwrapAndBurn");
     {
-        pub const DEFAULT_HEX_STRING: &str = "0x00064f2cd1be62b7496ad4897b984db99243e0921906f66ded15149d993ef42c000000000000000000000000000000000000000000000000000000000103c90c000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000e000000000000000000000000000000000000000000000000000000000000002200000000000000000000000000000000000000000000000000000000000000280000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001200003684ea93c43ed7bd00ab3bb189bb62f880436589f1ca58b599cd97d6007fb0000000000000000000000000000000000000000000000000000000067570fa40000000000000000000000000000000000000000000000000000000067570fa400000000000000000000000000000000000000000000000000004c6ac85bf854000000000000000000000000000000000000000000000000002e1bf13b772a9c0000000000000000000000000000000000000000000000000000000067586124000000000000000000000000000000000000000000000000002bb4cf7662949c000000000000000000000000000000000000000000000000002bae04e2661000000000000000000000000000000000000000000000000000002bb6a26c3fbeb80000000000000000000000000000000000000000000000000000000000000002af5e1b45dd8c84b12b4b58651ff4173ad7ca3f5d7f5374f077f71cce020fca787124749ce727634833d6ca67724fd912535c5da0f42fa525f46942492458f2c2000000000000000000000000000000000000000000000000000000000000000204e0bfa6e82373ae7dff01a305b72f1debe0b1f942a3af01bad18e0dc78a599f10bc40c2474b4059d43a591b75bdfdd80aafeffddfd66d0395cca2fdeba1673d";
-        let full_report = DEFAULT_HEX_STRING;
-        transmitter.verify(full_report).await.unwrap();
         let mut ixs = vec![];
 
         ixs.append(
@@ -502,4 +639,22 @@ async fn send_tx<T: Signers + ?Sized>(
         .inspect_err(|e| println!("Error: {:#?}", e))
         .unwrap();
     tx_id
+}
+
+async fn read_devnet_chainlink_signers() {
+    let signer = Keypair::new();
+    let dev_net_client = Client::new(Cluster::Devnet, &signer);
+    let verifier_program_devnet = dev_net_client.program(verifier::ID).unwrap();
+    let devnet_verifier = verifier_program_devnet
+        .account::<VerifierAccount>(
+            Pubkey::from_str("HJR45sRiFdGncL69HVzRK4HLS2SXcVW3KeTPkp2aFmWC").unwrap(),
+        )
+        .await
+        .unwrap();
+
+    for config in devnet_verifier.don_configs.iter() {
+        for signer in config.signers.iter() {
+            println!("signer: {:#?}", hex::encode(signer.key));
+        }
+    }
 }

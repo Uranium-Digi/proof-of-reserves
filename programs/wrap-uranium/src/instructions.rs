@@ -320,10 +320,8 @@ pub struct MintAndWrap<'info> {
     /// CHECK: This is not dangerous because we don't read or write from this account
     pub oracle_updater_program: AccountInfo<'info>,
 
-    #[account(mut, seeds = [b"mintable_account"], bump)]
+    #[account(mut, seeds = [b"mintable_account"], bump, seeds::program = oracle_updater::ID)]
     pub mintable_account: Account<'info, oracle_updater::Mintable>,
-
-
 }
 
 #[derive(Accounts)]

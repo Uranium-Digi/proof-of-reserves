@@ -21,3 +21,5 @@ test_utils = { git = "https://github.com/Uranium-Digi/chainlink-data-streams-sol
 verifier = { git = "https://github.com/Uranium-Digi/chainlink-data-streams-solana.git", subdir="programs/verifier", features=["no-entrypoint"]}
 access-controller = { git = "https://github.com/Uranium-Digi/chainlink-data-streams-solana.git", subdir="programs/access-controller", features=["no-entrypoint"]}
 
+hex-literal = "0.4.1"
+hex = "0.4.3"
