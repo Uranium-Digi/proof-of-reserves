@@ -1,0 +1,25 @@
+[toolchain]
+package_manager = "yarn"
+
+[features]
+resolution = true
+skip-lint = false
+
+[programs.localnet]
+oracle_updater = "8y6CXiQsLVXa98ASAeC9oMmo9GV7n7Z2mCwUJysYjUYs"
+wrap_uranium = "3JmfgAqnGnyh8pXGo8w8bi6MGjfd3Jn4aaKqfJgb7UcQ"
+
+[registry]
+url = "https://api.apr.dev"
+
+[provider]
+cluster = "localnet"
+wallet="/Users/hongjan/Documents/proof-of-reserves/.secrets/tokenAuthority.json"
+
+[scripts]
+test = "cargo test"
+
+[test.validator]
+[[test.genesis]]
+address = "Gt9S41PtjR58CbG9JhJ3J6vxesqrNAswbWYbLNTMZA3c"
+program = "deps/verifier.so"
