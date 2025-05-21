@@ -25,10 +25,37 @@ use solana_sdk::{
 };
 
 use transmitter::transmitter::transmitter::Transmitter;
+use verifier::state::VerifierAccount;
+
+use crate::common::verifier_test_setup::{VerifierTestSetup, VerifierTestSetupBuilder};
 
 #[tokio::test]
 // #[test]
 async fn test_initialize() {
+    let VerifierTestSetup {
+        mut environment_context,
+        verifier_client,
+        access_controller_account_address,
+        ..
+    } = VerifierTestSetupBuilder::new()
+        .program_name("verifier")
+        .program_id(verifier::ID)
+        .access_controller(access_controller::ID)
+        .build()
+        .await;
+
+    // Load the verifier account state and deserialize it
+    let verifier_account: VerifierAccount = verifier_client
+        .read_verifier_account(&mut environment_context)
+        .await
+        .unwrap();
+
+    // Check the contract account state matches that passed within the instruction
+    assert_eq!(
+        access_controller_account_address.unwrap(),
+        verifier_account.verifier_account_config.access_controller
+    );
+
     let program_id = Pubkey::from_str("3JmfgAqnGnyh8pXGo8w8bi6MGjfd3Jn4aaKqfJgb7UcQ").unwrap();
 
     // let oracle_updater_id;
