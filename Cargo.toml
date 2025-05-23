@@ -18,6 +18,7 @@ transmitter = { path = "apps/transmitter" }
 
 solana-sdk = "2.1.0"
 solana-client = "2.1.0"
+solana-program-test = "2.1.0"
 
 anchor-lang = "0.31.1"
 anchor-client = "0.31.1"

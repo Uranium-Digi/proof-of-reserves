@@ -8,9 +8,18 @@ edition = "2021"
 tokio = { version = "1", features = ["macros"] }
 anchor-client = { workspace = true, features = ["async"] }
 anchor-spl = { workspace = true }
+anchor-lang = { workspace = true }
 solana-sdk = { workspace = true }
 solana-client = { workspace = true }
+solana-program-test = { workspace = true }
 
 oracle-updater = { workspace = true }
 transmitter = { workspace = true }
 wrap-uranium = { workspace = true }
+
+test_utils = { git = "https://github.com/Uranium-Digi/chainlink-data-streams-solana.git", subdir="test_utils"}
+verifier = { git = "https://github.com/Uranium-Digi/chainlink-data-streams-solana.git", subdir="programs/verifier", features=["no-entrypoint"]}
+access-controller = { git = "https://github.com/Uranium-Digi/chainlink-data-streams-solana.git", subdir="programs/access-controller", features=["no-entrypoint"]}
+
+hex-literal = "0.4.1"
+hex = "0.4.3"

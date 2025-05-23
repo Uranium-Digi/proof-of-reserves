@@ -14,7 +14,7 @@ url = "https://api.apr.dev"
 
 [provider]
 cluster = "localnet"
-wallet="/Users/hongjan/Documents/proof-of-reserves/.secrets/tokenAuthority.json"
+wallet="/home/ricky/projects/ud/proof-of-reserves/.secrets/tokenAuthority.json"
 
 [scripts]
 test = "cargo test"
@@ -23,3 +23,9 @@ test = "cargo test"
 [[test.genesis]]
 address = "Gt9S41PtjR58CbG9JhJ3J6vxesqrNAswbWYbLNTMZA3c"
 program = "deps/verifier.so"
+upgradeable = true
+
+[[test.genesis]]
+address = "EjVftbXwfRZoZDzJ6eHArCqiBiPHBLq5zajRqMiHGH1A"
+program = "deps/access_controller.so"
+upgradeable = true

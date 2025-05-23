@@ -92,10 +92,10 @@ pub async fn run(transmitter: &Transmitter) -> Result<(), Box<dyn Error>> {
                     stream.get_stats()
                 );
 
-                if (response.report.valid_from_timestamp > last_verified_timestamp + 30) {
+                if response.report.valid_from_timestamp > last_verified_timestamp + 30 {
                     // verify the last report every 30 seconds
                     info!("🌟 Verifying report...");
-                    let tx = transmitter.verify(&response.report.full_report).await?;
+                    let tx = transmitter.verify(&response.report.full_report, None).await?;
                     info!("🌟 🌟 Signature: {}", tx);
                 }
             }
