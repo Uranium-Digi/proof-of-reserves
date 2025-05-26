@@ -12,8 +12,9 @@ declare_id!("3JmfgAqnGnyh8pXGo8w8bi6MGjfd3Jn4aaKqfJgb7UcQ");
 #[program]
 pub mod wrap_uranium {
     use anchor_spl::token_2022::{
-        burn, mint_to, spl_token_2022::extension::transfer_fee::TransferFeeConfig,
-        transfer_checked, Burn, MintTo, TransferChecked,
+        burn, mint_to, set_authority,
+        spl_token_2022::{extension::transfer_fee::TransferFeeConfig, instruction::AuthorityType},
+        transfer_checked, Burn, MintTo, SetAuthority, TransferChecked,
     };
     use utils::{calculate_burn_amount, calculate_transfer_amount, get_mint_extension_data};
 
@@ -233,6 +234,78 @@ pub mod wrap_uranium {
             amount_from_fee_reserve,
         )?;
 
+        Ok(())
+    }
+
+    // Mint authority "signer" -> "config_pda"
+    pub fn deposit_mint_authority(ctx: Context<DepositMintAuthority>) -> Result<()> {
+        set_authority(
+            CpiContext::new(
+                ctx.accounts.token_program.to_account_info(),
+                SetAuthority {
+                    current_authority: ctx.accounts.signer.to_account_info(),
+                    account_or_mint: ctx.accounts.mint.to_account_info(),
+                },
+            ),
+            AuthorityType::MintTokens,
+            Some(ctx.accounts.config.key()),
+        )?;
+        Ok(())
+    }
+
+    // Mint authority "config_pda" -> "signer"
+    pub fn withdraw_mint_authority(ctx: Context<WithdrawMintAuthority>) -> Result<()> {
+        set_authority(
+            CpiContext::new_with_signer(
+                ctx.accounts.token_program.to_account_info(),
+                SetAuthority {
+                    current_authority: ctx.accounts.config.to_account_info(),
+                    account_or_mint: ctx.accounts.mint.to_account_info(),
+                },
+                &[&[
+                    b"config",
+                    ctx.accounts.mint.key().as_ref(),
+                    &[ctx.bumps.config],
+                ]],
+            ),
+            AuthorityType::MintTokens,
+            Some(ctx.accounts.signer.key()),
+        )?;
+        Ok(())
+    }
+
+    pub fn deposit_wraped_mint_authority(ctx: Context<DepositWrapedMintAuthority>) -> Result<()> {
+        set_authority(
+            CpiContext::new(
+                ctx.accounts.token_program.to_account_info(),
+                SetAuthority {
+                    current_authority: ctx.accounts.signer.to_account_info(),
+                    account_or_mint: ctx.accounts.wrapped_mint.to_account_info(),
+                },
+            ),
+            AuthorityType::MintTokens,
+            Some(ctx.accounts.config.key()),
+        )?;
+        Ok(())
+    }
+
+    pub fn withdraw_wraped_mint_authority(ctx: Context<WithdrawWrapedMintAuthority>) -> Result<()> {
+        set_authority(
+            CpiContext::new_with_signer(
+                ctx.accounts.token_program.to_account_info(),
+                SetAuthority {
+                    current_authority: ctx.accounts.config.to_account_info(),
+                    account_or_mint: ctx.accounts.wrapped_mint.to_account_info(),
+                },
+                &[&[
+                    b"config",
+                    ctx.accounts.mint.key().as_ref(),
+                    &[ctx.bumps.config],
+                ]],
+            ),
+            AuthorityType::MintTokens,
+            Some(ctx.accounts.signer.key()),
+        )?;
         Ok(())
     }
 }

@@ -62,6 +62,104 @@ pub struct Initialize<'info> {
 }
 
 #[derive(Accounts)]
+pub struct DepositMintAuthority<'info> {
+    #[account(
+        mut,
+        constraint = signer.key() == config.authority @ CustomError::YouAreNotAdmin
+    )]
+    pub signer: Signer<'info>,
+
+    #[account(
+        mut, 
+        seeds = [b"config", mint.key().as_ref()], 
+        bump,
+    )]
+    pub config: Account<'info, Config>,
+
+    #[account(mint::decimals = 9)]
+    pub mint: Box<InterfaceAccount<'info, Mint>>,
+
+    pub token_program: Program<'info, Token2022>,
+}
+
+#[derive(Accounts)]
+pub struct WithdrawMintAuthority<'info> {
+    #[account(
+        mut,
+        constraint = signer.key() == config.authority @ CustomError::YouAreNotAdmin
+    )]
+    pub signer: Signer<'info>,
+
+    #[account(
+        mut, 
+        seeds = [b"config", mint.key().as_ref()], 
+        bump,
+    )]
+    pub config: Account<'info, Config>,
+
+    #[account(mint::decimals = 9)]
+    pub mint: Box<InterfaceAccount<'info, Mint>>,
+
+    pub token_program: Program<'info, Token2022>,
+}
+
+#[derive(Accounts)]
+pub struct DepositWrapedMintAuthority<'info> {
+    #[account(
+        mut,
+        constraint = signer.key() == config.authority @ CustomError::YouAreNotAdmin
+    )]
+    pub signer: Signer<'info>,
+
+    #[account(
+        mut, 
+        seeds = [b"config", mint.key().as_ref()], 
+        bump,
+    )]
+    pub config: Account<'info, Config>,
+
+    #[account(mint::decimals = 9)]
+    pub mint: Box<InterfaceAccount<'info, Mint>>,
+
+    #[account(
+        seeds = [b"wrapped_mint", mint.key().as_ref()],
+        bump,
+        mint::token_program = token_program
+    )]
+    pub wrapped_mint: Box<InterfaceAccount<'info, Mint>>,
+
+    pub token_program: Program<'info, Token2022>,
+}
+
+#[derive(Accounts)]
+pub struct WithdrawWrapedMintAuthority<'info> {
+    #[account(
+        mut,
+        constraint = signer.key() == config.authority @ CustomError::YouAreNotAdmin
+    )]
+    pub signer: Signer<'info>,
+
+    #[account(
+        mut, 
+        seeds = [b"config", mint.key().as_ref()], 
+        bump,
+    )]
+    pub config: Account<'info, Config>,
+
+    #[account(mint::decimals = 9)]
+    pub mint: Box<InterfaceAccount<'info, Mint>>,
+
+    #[account(
+        seeds = [b"wrapped_mint", mint.key().as_ref()],
+        bump,
+        mint::token_program = token_program
+    )]
+    pub wrapped_mint: Box<InterfaceAccount<'info, Mint>>,
+
+    pub token_program: Program<'info, Token2022>,
+}
+
+#[derive(Accounts)]
 pub struct SetConfig<'info> {
     #[account(
         mut,
