@@ -150,13 +150,18 @@ pub mod wrap_uranium {
         }
 
         mint_to(
-            CpiContext::new(
+            CpiContext::new_with_signer(
                 ctx.accounts.token_program.to_account_info(),
                 MintTo {
                     mint: ctx.accounts.mint.to_account_info(),
                     to: ctx.accounts.mint_ata.to_account_info(),
-                    authority: ctx.accounts.mint_authority.to_account_info(),
+                    authority: ctx.accounts.config.to_account_info(),
                 },
+                &[&[
+                    b"config",
+                    ctx.accounts.mint.key().as_ref(),
+                    &[ctx.bumps.config],
+                ]],
             ),
             token_amount,
         )?;

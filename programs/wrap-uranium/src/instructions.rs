@@ -331,9 +331,6 @@ pub struct MintAndWrap<'info> {
     )]
     pub signer: Signer<'info>,
 
-    #[account(signer)]
-    pub mint_authority: Signer<'info>,
-
     #[account(
         seeds = [b"config", mint.key().as_ref()],
         bump,
@@ -343,7 +340,7 @@ pub struct MintAndWrap<'info> {
     #[account(
         mut,
         mint::decimals = 9,
-        mint::authority = signer,
+        mint::authority = config,
         mint::token_program = token_program
     )]
     pub mint: InterfaceAccount<'info, Mint>,
