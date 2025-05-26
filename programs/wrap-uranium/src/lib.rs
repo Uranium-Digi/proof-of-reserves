@@ -279,7 +279,7 @@ pub mod wrap_uranium {
         Ok(())
     }
 
-    pub fn deposit_wraped_mint_authority(ctx: Context<DepositWrapedMintAuthority>) -> Result<()> {
+    pub fn deposit_wrapped_mint_authority(ctx: Context<DepositWrappedMintAuthority>) -> Result<()> {
         set_authority(
             CpiContext::new(
                 ctx.accounts.token_program.to_account_info(),
@@ -294,7 +294,9 @@ pub mod wrap_uranium {
         Ok(())
     }
 
-    pub fn withdraw_wraped_mint_authority(ctx: Context<WithdrawWrapedMintAuthority>) -> Result<()> {
+    pub fn withdraw_wrapped_mint_authority(
+        ctx: Context<WithdrawWrappedMintAuthority>,
+    ) -> Result<()> {
         set_authority(
             CpiContext::new_with_signer(
                 ctx.accounts.token_program.to_account_info(),
