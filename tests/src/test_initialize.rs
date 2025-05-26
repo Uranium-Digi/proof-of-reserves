@@ -489,8 +489,7 @@ async fn test_initialize() {
 
     println!("MintingAndWrapping");
     {
-        let reserves_account =
-            Pubkey::find_program_address(&[b"reserves"], &oracle_updater::ID).0;
+        let reserves_account = Pubkey::find_program_address(&[b"reserves"], &oracle_updater::ID).0;
 
         println!("reserves_account: {:?}", &reserves_account);
         let mut ixs = vec![];
@@ -498,9 +497,22 @@ async fn test_initialize() {
         ixs.append(
             &mut program
                 .request()
+                .accounts(wrap_uranium::accounts::DepositMintAuthority {
+                    signer: signer.pubkey(),
+                    config,
+                    mint: mint.pubkey(),
+                    token_program: spl_token_2022::ID,
+                })
+                .args(wrap_uranium::instruction::DepositMintAuthority {})
+                .instructions()
+                .unwrap(),
+        );
+
+        ixs.append(
+            &mut program
+                .request()
                 .accounts(wrap_uranium::accounts::MintAndWrap {
                     signer: signer.pubkey(),
-                    mint_authority: signer.pubkey(),
                     mint: mint.pubkey(),
                     wrapped_mint,
                     config,
