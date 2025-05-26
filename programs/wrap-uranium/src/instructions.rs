@@ -17,13 +17,14 @@ pub struct Initialize<'info> {
         init,
         payer = signer,
         space = 8 + Config::INIT_SPACE,
-        seeds = [b"config2", mint.key().as_ref()],
+        seeds = [b"config", mint.key().as_ref()],
         bump,
     )]
     pub config: Box<Account<'info, Config>>,
 
     /// CHECK: mint is not dangerous because we don't read or write from this account
     pub mint: AccountInfo<'info>,
+
     #[account(
         init, 
         seeds = [b"wrapped_mint", mint.key().as_ref()],
@@ -35,38 +36,9 @@ pub struct Initialize<'info> {
     )]
     pub wrapped_mint: Box<InterfaceAccount<'info, Mint>>,
 
-    pub token_program: Program<'info, Token2022>,
-    pub associated_token_program: Program<'info, AssociatedToken>,
-    pub system_program: Program<'info, System>,
-}
-
-#[derive(Accounts)]
-pub struct Initialize2<'info> {
-    #[account(mut)]
-    pub signer: Signer<'info>,
-
     #[account(
-        mut,
-        seeds = [b"config2", mint.key().as_ref()],
-        bump,
-    )]
-    pub config: Box<Account<'info, Config>>,
-
-    /// CHECK: mint is not dangerous because we don't read or write from this account
-    pub mint: AccountInfo<'info>,
-
-    #[account(
-        seeds = [b"wrapped_mint", mint.key().as_ref()],
-        bump,
-        mint::decimals = 9, 
-        mint::authority = config,
-        mint::token_program = token_program
-    )]
-    pub wrapped_mint: Box<InterfaceAccount<'info, Mint>>,
-
-    #[account(
-        init, 
-        payer = signer, 
+        init,
+        payer = signer,
         associated_token::mint = mint,
         associated_token::authority = config,
         associated_token::token_program = token_program
@@ -99,9 +71,8 @@ pub struct SetConfig<'info> {
 
     #[account(
         mut, 
-        seeds = [b"config2", mint.key().as_ref()], 
+        seeds = [b"config", mint.key().as_ref()], 
         bump,
-        constraint = config.ata_initialized @ CustomError::AtaNotInitialized
     )]
     pub config: Account<'info, Config>,
 
@@ -128,9 +99,8 @@ pub struct Wrap<'info> {
     pub owner: Signer<'info>,
 
     #[account(
-        seeds = [b"config2", mint.key().as_ref()],
+        seeds = [b"config", mint.key().as_ref()],
         bump,
-        constraint = config.ata_initialized @ CustomError::AtaNotInitialized
     )]
     pub config: Box<Account<'info, Config>>,
 
@@ -193,9 +163,8 @@ pub struct Unwrap<'info> {
     pub owner: Signer<'info>,
 
     #[account(
-        seeds = [b"config2", mint.key().as_ref()],
+        seeds = [b"config", mint.key().as_ref()],
         bump,
-        constraint = config.ata_initialized @ CustomError::AtaNotInitialized
     )]
     pub config: Box<Account<'info, Config>>,
 
@@ -268,9 +237,8 @@ pub struct MintAndWrap<'info> {
     pub mint_authority: Signer<'info>,
 
     #[account(
-        seeds = [b"config2", mint.key().as_ref()],
+        seeds = [b"config", mint.key().as_ref()],
         bump,
-        constraint = config.ata_initialized @ CustomError::AtaNotInitialized
     )]
     pub config: Box<Account<'info, Config>>,
 
@@ -320,8 +288,8 @@ pub struct MintAndWrap<'info> {
     /// CHECK: This is not dangerous because we don't read or write from this account
     pub oracle_updater_program: AccountInfo<'info>,
 
-    #[account(mut, seeds = [b"mintable_account"], bump, seeds::program = oracle_updater::ID)]
-    pub mintable_account: Account<'info, oracle_updater::Mintable>,
+    #[account(mut, seeds = [b"reserves"], bump, seeds::program = oracle_updater::ID)]
+    pub reserves_account: Account<'info, oracle_updater::Reserves>,
 }
 
 #[derive(Accounts)]
@@ -336,9 +304,8 @@ pub struct UnwrapAndBurn<'info> {
     pub owner: Signer<'info>,
 
     #[account(
-        seeds = [b"config2", mint.key().as_ref()],
+        seeds = [b"config", mint.key().as_ref()],
         bump,
-        constraint = config.ata_initialized @ CustomError::AtaNotInitialized
     )]
     pub config: Box<Account<'info, Config>>,
 

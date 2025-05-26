@@ -5,6 +5,5 @@ pub enum CustomError {
     YouAreNotWrapAuthority,
     YouAreNotUnwrapAuthority,
     InvalidFee,
-    AtaNotInitialized,
-    InsufficientMintable,
+    InsufficientReserves,
 }

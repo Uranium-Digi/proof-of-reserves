@@ -195,7 +195,7 @@ async fn test_initialize() {
     // Initialize Chainlink Verifier
     let access_controller = init_chainlink_verifier(&signer).await;
 
-    // Verify the "DEFAULT_HEX_STRING" report and populate the mintable account
+    // Verify the "DEFAULT_HEX_STRING" report and populate the reserves account
     Transmitter::new(Some(Cluster::Localnet), Some(WALLET_KEY.to_string()))
         .unwrap()
         .verify(DEFAULT_HEX_STRING, Some(access_controller))
@@ -228,7 +228,7 @@ async fn test_initialize() {
     let wrapped_mint =
         Pubkey::find_program_address(&[b"wrapped_mint", mint.pubkey().as_ref()], &program_id).0;
 
-    let config = Pubkey::find_program_address(&[b"config2", mint.pubkey().as_ref()], &program_id).0;
+    let config = Pubkey::find_program_address(&[b"config", mint.pubkey().as_ref()], &program_id).0;
 
     let fee_rebate_reserve = Pubkey::find_program_address(
         &[b"fee_rebate_reserve", mint.pubkey().as_ref()],
@@ -314,30 +314,13 @@ async fn test_initialize() {
                     mint: mint.pubkey(),
                     wrapped_mint,
                     config,
-                    token_program: spl_token_2022::ID,
-                    associated_token_program: spl_associated_token_account::ID,
-                    system_program: solana_program::system_program::ID,
-                })
-                .args(wrap_uranium::instruction::Initialize {})
-                .instructions()
-                .unwrap(),
-        );
-
-        ixs.append(
-            &mut program
-                .request()
-                .accounts(wrap_uranium::accounts::Initialize2 {
-                    signer: signer.pubkey(),
-                    mint: mint.pubkey(),
-                    wrapped_mint,
-                    config,
                     mint_ata,
                     fee_rebate_reserve,
                     token_program: spl_token_2022::ID,
                     associated_token_program: spl_associated_token_account::ID,
                     system_program: solana_program::system_program::ID,
                 })
-                .args(wrap_uranium::instruction::Initialize2 {})
+                .args(wrap_uranium::instruction::Initialize {})
                 .instructions()
                 .unwrap(),
         );
@@ -506,10 +489,10 @@ async fn test_initialize() {
 
     println!("MintingAndWrapping");
     {
-        let mintable_account =
-            Pubkey::find_program_address(&[b"mintable_account"], &oracle_updater::ID).0;
+        let reserves_account =
+            Pubkey::find_program_address(&[b"reserves"], &oracle_updater::ID).0;
 
-        println!("mintable_account: {:?}", &mintable_account);
+        println!("reserves_account: {:?}", &reserves_account);
         let mut ixs = vec![];
 
         ixs.append(
@@ -529,7 +512,7 @@ async fn test_initialize() {
                     system_program: solana_program::system_program::ID,
                     //
                     oracle_updater_program: oracle_updater::ID,
-                    mintable_account,
+                    reserves_account,
                 })
                 .args(wrap_uranium::instruction::MintAndWrap {
                     token_amount: 100 * LAMPORTS_PER_SOL,

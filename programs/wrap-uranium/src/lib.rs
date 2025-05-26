@@ -7,11 +7,6 @@ mod utils;
 
 use instructions::*;
 
-use oracle_updater::cpi;
-use oracle_updater::cpi::accounts::MintableContext as OracleMintableContext;
-use oracle_updater::program::OracleUpdater;
-use oracle_updater::Mintable;
-
 declare_id!("3JmfgAqnGnyh8pXGo8w8bi6MGjfd3Jn4aaKqfJgb7UcQ");
 
 #[program]
@@ -30,13 +25,7 @@ pub mod wrap_uranium {
         ctx.accounts.config.authority = ctx.accounts.signer.key();
         ctx.accounts.config.wrap_authority = ctx.accounts.signer.key();
         ctx.accounts.config.unwrap_authority = ctx.accounts.signer.key();
-        ctx.accounts.config.ata_initialized = false;
 
-        Ok(())
-    }
-
-    pub fn initialize2(ctx: Context<Initialize2>) -> Result<()> {
-        ctx.accounts.config.ata_initialized = true;
         Ok(())
     }
 
@@ -72,7 +61,7 @@ pub mod wrap_uranium {
                     authority: ctx.accounts.config.to_account_info(),
                 },
                 &[&[
-                    b"config2",
+                    b"config",
                     ctx.accounts.mint.key().as_ref(),
                     &[ctx.bumps.config],
                 ]],
@@ -104,7 +93,7 @@ pub mod wrap_uranium {
                     authority: ctx.accounts.config.to_account_info(),
                 },
                 &[&[
-                    b"config2",
+                    b"config",
                     ctx.accounts.mint.key().as_ref(),
                     &[ctx.bumps.config],
                 ]],
@@ -123,7 +112,7 @@ pub mod wrap_uranium {
                     authority: ctx.accounts.config.to_account_info(),
                 },
                 &[&[
-                    b"config2",
+                    b"config",
                     ctx.accounts.mint.key().as_ref(),
                     &[ctx.bumps.config],
                 ]],
@@ -152,18 +141,12 @@ pub mod wrap_uranium {
     }
 
     pub fn mint_and_wrap(ctx: Context<MintAndWrap>, token_amount: u64) -> Result<()> {
-        let oracle_updater_cpi_ctx = CpiContext::new(
-            ctx.accounts.oracle_updater_program.to_account_info(),
-            OracleMintableContext {
-                mintable_account: ctx.accounts.mintable_account.to_account_info(),
-            },
-        );
-        let mintable = ctx.accounts.mintable_account.mintable;
-        if token_amount > mintable {
-            return Err(CustomError::InsufficientMintable.into());
+        let supply = ctx.accounts.mint.supply;
+        let new_supply = supply.checked_add(token_amount).unwrap(); // error if overflow
+        let reserved = ctx.accounts.reserves_account.reserves;
+        if new_supply > reserved {
+            return Err(CustomError::InsufficientReserves.into());
         }
-
-        cpi::update_mintable_amount(oracle_updater_cpi_ctx, token_amount)?;
 
         mint_to(
             CpiContext::new(
@@ -186,7 +169,7 @@ pub mod wrap_uranium {
                     authority: ctx.accounts.config.to_account_info(),
                 },
                 &[&[
-                    b"config2",
+                    b"config",
                     ctx.accounts.mint.key().as_ref(),
                     &[ctx.bumps.config],
                 ]],
@@ -225,7 +208,7 @@ pub mod wrap_uranium {
                     authority: ctx.accounts.config.to_account_info(),
                 },
                 &[&[
-                    b"config2",
+                    b"config",
                     ctx.accounts.mint.key().as_ref(),
                     &[ctx.bumps.config],
                 ]],
@@ -242,7 +225,7 @@ pub mod wrap_uranium {
                     authority: ctx.accounts.config.to_account_info(),
                 },
                 &[&[
-                    b"config2",
+                    b"config",
                     ctx.accounts.mint.key().as_ref(),
                     &[ctx.bumps.config],
                 ]],

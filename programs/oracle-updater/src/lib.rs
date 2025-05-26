@@ -7,12 +7,11 @@ use anchor_lang::solana_program::{
 use chainlink_data_streams_report::report::v3::ReportDataV3;
 use chainlink_solana_data_streams::VerifierInstructions;
 
-use hex;
 pub mod instructions;
 use instructions::*;
 
 // Re-export types for external use
-pub use instructions::{CompressedProof, Mintable, ProofState};
+pub use instructions::{CompressedProof, ProofState, Reserves};
 
 // https://docs.chain.link/data-streams/tutorials/streams-direct/solana-onchain-report-verification
 declare_id!("8y6CXiQsLVXa98ASAeC9oMmo9GV7n7Z2mCwUJysYjUYs");
@@ -83,34 +82,26 @@ pub mod oracle_updater {
             let proof_state = compressed_proof_account.decode()?;
             msg!("Proof State: {:?}", proof_state);
 
-            let mintable_amount = compressed_proof_account.calculate_mintable()?;
-            msg!("Mintable amount: {}", mintable_amount);
+            let reserves_account = &mut ctx.accounts.reserves_account;
+            reserves_account.reserves = proof_state.total_reserves;
 
-            let mintable_account = &mut ctx.accounts.mintable_account;
-            mintable_account.mintable = mintable_amount;
-
-            msg!("Mintable Account: {:?}", mintable_account);
+            msg!("Reserves Account: {:?}", reserves_account);
         } else {
             msg!("No report data found!");
             return Err(error!(CustomError::NoReportData));
         }
         Ok(())
     }
-    // pub fn initialize(ctx: Context<Initialize>) -> Result<()> {
-    //     msg!("Greetings from: {:?}", ctx.program_id);
-    //     Ok(())
-    // }
 
-    // tells you amount you can mint
-    pub fn mintable_amount(ctx: Context<MintableContext>) -> Result<()> {
-        let mintable_account = &ctx.accounts.mintable_account;
-        msg!("Mintable amount: {}", mintable_account.mintable);
+    // tells you the current reserves amount
+    pub fn reserve_amount(ctx: Context<ReservesContext>) -> Result<()> {
+        let reserves_account = &ctx.accounts.reserves_account;
+        msg!("Reserves amount: {}", reserves_account.reserves);
         Ok(())
     }
 
-    pub fn update_mintable_amount(ctx: Context<MintableContext>, amount: u64) -> Result<()> {
-        let mintable_account = &mut ctx.accounts.mintable_account;
-        mintable_account.mintable = mintable_account.mintable.saturating_sub(amount);
+    pub fn update_reserves_amount(ctx: Context<ReservesContext>, amount: u64) -> Result<()> {
+        ctx.accounts.reserves_account.reserves = amount;
         Ok(())
     }
 }

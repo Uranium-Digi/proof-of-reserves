@@ -126,9 +126,9 @@ impl Transmitter {
             Pubkey::find_program_address(&[b"proof_v4"], &self.program.id());
         println!("compressed_proof_account: {:?}", &compressed_proof_account);
 
-        let (mintable_account, _) =
-            Pubkey::find_program_address(&[b"mintable_account"], &self.program.id());
-        println!("mintable_account: {:?}", &mintable_account);
+        let (reserves_account, _) =
+            Pubkey::find_program_address(&[b"reserves"], &self.program.id());
+        println!("reserves_account: {:?}", &reserves_account);
 
         // Make sure this seed matches the on-chain logic
         let user = self.program.payer();
@@ -145,7 +145,7 @@ impl Transmitter {
                 config_account,
                 verifier_program_id,
                 compressed_proof: compressed_proof_account,
-                mintable_account,
+                reserves_account,
                 system_program: anchor_client::solana_sdk::system_program::ID,
             })
             .args(oracle_updater::instruction::Verify {
@@ -178,11 +178,11 @@ impl Transmitter {
         println!("  Ripcord Details: {:?}", proof_state.ripcord_details);
         println!("  Timestamp: {}", proof_state.timestamp);
 
-        let mintable_account: oracle_updater::Mintable =
-            self.program.account(mintable_account).await?;
+        let reserves_account: oracle_updater::Reserves =
+            self.program.account(reserves_account).await?;
 
-        println!("🔶  Mintable Account:");
-        println!("    Mintable: {}", mintable_account.mintable);
+        println!("🔶  Reserves Account:");
+        println!("    Reserves: {}", reserves_account.reserves);
 
         Ok(tx)
     }

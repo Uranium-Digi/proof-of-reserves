@@ -48,13 +48,19 @@ pub struct ExampleProgramContext<'info> {
     pub compressed_proof: Account<'info, CompressedProof>, // should be an account
 
     #[account(init_if_needed,
-        seeds=[b"mintable_account"],
+        seeds=[b"reserves"],
         bump,
         payer = user,
         space = 8 + 8,
     )]
-    pub mintable_account: Account<'info, Mintable>,
+    pub reserves_account: Account<'info, Reserves>,
     pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct ReservesContext<'info> {
+    #[account(mut, seeds=[b"reserves"], bump)]
+    pub reserves_account: Account<'info, Reserves>,
 }
 
 #[account]
@@ -70,25 +76,12 @@ impl CompressedProof {
         let (proof_state, _) = ProofState::decode(&self.compressed_proof)?;
         Ok(proof_state)
     }
-    pub fn calculate_mintable(&self) -> Result<u64> {
-        let proof_state = self.decode()?;
-        let mintable = proof_state
-            .total_reserves
-            .saturating_sub(proof_state.total_token);
-        Ok(mintable)
-    }
-}
-
-#[derive(Accounts)]
-pub struct MintableContext<'info> {
-    #[account(mut, seeds=[b"mintable_account"], bump)]
-    pub mintable_account: Account<'info, Mintable>,
 }
 
 #[account]
 #[derive(Debug)]
-pub struct Mintable {
-    pub mintable: u64,
+pub struct Reserves {
+    pub reserves: u64,
 }
 
 // The report structure from the TNF should look like this:
