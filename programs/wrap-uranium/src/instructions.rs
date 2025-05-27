@@ -104,7 +104,7 @@ pub struct WithdrawMintAuthority<'info> {
 }
 
 #[derive(Accounts)]
-pub struct DepositWrapedMintAuthority<'info> {
+pub struct DepositWrappedMintAuthority<'info> {
     #[account(
         mut,
         constraint = signer.key() == config.authority @ CustomError::YouAreNotAdmin
@@ -132,7 +132,7 @@ pub struct DepositWrapedMintAuthority<'info> {
 }
 
 #[derive(Accounts)]
-pub struct WithdrawWrapedMintAuthority<'info> {
+pub struct WithdrawWrappedMintAuthority<'info> {
     #[account(
         mut,
         constraint = signer.key() == config.authority @ CustomError::YouAreNotAdmin
