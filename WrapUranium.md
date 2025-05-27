@@ -109,25 +109,7 @@ Who can call: config.authority
 
 # Difference between set_app_config and deposit_mint_authority, withdraw_mint_authority, and deposit_wrapped_mint_authority, withdraw_wrapped_mint_authority
 
-## Authority Management
-
-The program has two types of authority management:
-
-1. **Program Configuration** (`set_app_config`)
-
-   - Updates who can perform different actions in the program
-   - Changes the stored authority addresses in the Config account
-   - Controls: main authority, wrap authority, and unwrap authority
-   - Like changing admin access to the program
-
-2. **Mint Authority** (`deposit_mint_authority`, `withdraw_mint_authority`, `deposit_wrapped_mint_authority`, `withdraw_wrapped_mint_authority`)
-   - Changes who can actually mint new tokens
-   - Controls the mint authority of the token mints themselves
-   - Two separate sets for original and wrapped tokens
-   - Like changing who has the keys to mint tokens
-
-This separation ensures that:
-
-- Program access control is managed separately from token minting authority
-- Original and wrapped tokens can have different minting authorities
-- Authorities can be transferred between signers and the program's config PDA
+- `deposit_mint_authority` is to put the `mint_authority` of the U token into the `wrap_uranium` program, specifically the `configPDA`, so that the `wrap_uranium` program, and only this program, can mint U tokens, directly.
+- `withdraw_mint_authority` is to withdraw the `mint_authority` of the U token from the `wrap_uranium` program, and set it to `account_or_mint`, so that the `wrap_uranium` program can no longer mint U Tokens.
+- `deposit_wrapped_mint_authority` is to deposit the `mint_authority` of the wU token (the account of the `token_2022` program) into the `wrap_uranium` program. This should not need to be called, because the action is already done in the `initialize` function. However, if we ever extract the `mint_authority` of the wU token from a deployed `wrap_uranium` program, and migrate the rights to mint wU tokens, this function will be called on a new `wrap_uranium_2` program. Furthermore, this function is included for symmetry and elegance reasons. The new `wrap_uranium_2` program, deposited with the `mint_authority` of the wU token, will then be able to mint new `wU` tokens.
+- `withdraw_wrapped_mint_authority` is to withdraw the `mint_authority` of the wU token from the `wrap_uranium` program, so that the old `wrap_uranium` program will no longer be able to mint wU tokens. This is an abandon ship action. This should not be called if everything's going alright.
