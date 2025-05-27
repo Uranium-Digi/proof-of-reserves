@@ -106,6 +106,7 @@ Who can call: config.authority
 2. Deploy `wrap_uranium` program.
 3. Call `initialize` on `wrap_uranium` - sets the authority, wrap_authority, and unwrap_authority. But this does not actually give the `wrap_uranium` program the right to mint U tokens. We do that in the next step.
 4. Call `deposit_mint_authority` with `tokenAuthority` on the `wrap_uranium` program. This is a CPI to the U token's `set_authority` function. Function call would fail, if the caller is not the current authority of the U token, which is `tokenAuthority` at the moment. After calling this, the `wrap_uranium` program would have U token minting rights.
+5. Call `set_app_config` to transfer the `authotiry` and `wrap_authority` and `unwrap_authority` to fireblocks. (This should probably be done independently, not in the token deployment pipeline).
 
 # Difference between set_app_config and deposit_mint_authority, withdraw_mint_authority, and deposit_wrapped_mint_authority, withdraw_wrapped_mint_authority
 
