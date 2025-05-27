@@ -14,7 +14,7 @@ url = "https://api.apr.dev"
 
 [provider]
 cluster = "localnet"
-wallet="/Users/hongjan/Documents/proof-of-reserves/.secrets/fundingWallet.json"
+wallet = "/Users/hongjan/Documents/token-deployer/.secrets/tokenAuthority.json"
 
 [scripts]
 test = "cargo test"

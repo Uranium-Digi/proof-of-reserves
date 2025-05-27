@@ -76,7 +76,7 @@ pub struct DepositMintAuthority<'info> {
     )]
     pub config: Account<'info, Config>,
 
-    #[account(mint::decimals = 9)]
+    #[account(mut, mint::decimals = 9)]
     pub mint: Box<InterfaceAccount<'info, Mint>>,
 
     pub token_program: Program<'info, Token2022>,
@@ -97,7 +97,7 @@ pub struct WithdrawMintAuthority<'info> {
     )]
     pub config: Account<'info, Config>,
 
-    #[account(mint::decimals = 9)]
+    #[account(mut, mint::decimals = 9)]
     pub mint: Box<InterfaceAccount<'info, Mint>>,
 
     pub token_program: Program<'info, Token2022>,
@@ -118,7 +118,7 @@ pub struct DepositWrappedMintAuthority<'info> {
     )]
     pub config: Account<'info, Config>,
 
-    #[account(mint::decimals = 9)]
+    #[account(mut, mint::decimals = 9)]
     pub mint: Box<InterfaceAccount<'info, Mint>>,
 
     #[account(
@@ -174,7 +174,7 @@ pub struct SetConfig<'info> {
     )]
     pub config: Account<'info, Config>,
 
-    #[account(mint::decimals = 9)]
+    #[account(mut, mint::decimals = 9)]
     pub mint: Box<InterfaceAccount<'info, Mint>>,
 
     /// CHECK: This is not dangerous because we don't read or write from this account
