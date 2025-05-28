@@ -14,7 +14,7 @@ use instructions::*;
 pub use instructions::{CompressedProof, ProofState, Reserves};
 
 // https://docs.chain.link/data-streams/tutorials/streams-direct/solana-onchain-report-verification
-declare_id!("8y6CXiQsLVXa98ASAeC9oMmo9GV7n7Z2mCwUJysYjUYs");
+declare_id!("DKuMPrGWQqGfCu9TbT6hLB6JCoLSryCaHLhLdYieY1KT");
 
 #[program]
 pub mod oracle_updater {

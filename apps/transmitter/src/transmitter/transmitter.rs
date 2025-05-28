@@ -126,6 +126,9 @@ impl Transmitter {
             Pubkey::find_program_address(&[b"proof_v4"], &self.program.id());
         println!("compressed_proof_account: {:?}", &compressed_proof_account);
 
+        println!("🅿️ self.program.id(): {:?}", &self.program.id());
+        // let (reserves_account, _) =
+        //     Pubkey::find_program_address(&[b"reserves"], &oracle_updater::ID);
         let (reserves_account, _) =
             Pubkey::find_program_address(&[b"reserves"], &self.program.id());
         println!("reserves_account: {:?}", &reserves_account);
