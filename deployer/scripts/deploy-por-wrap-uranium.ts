@@ -276,7 +276,7 @@ async function main(
     await initializeWrappedTokenWithPoR(wrapUraniumIdl, tokenMint.toBase58())
 }
 
-main('CXyYRtfJGYiCkRWYj8dAbbtZH1aKq1DRok7ePNkV3aqX')
+main()
 // async function main(uraniumTokenAddress?: string, useExistingWrapUraniumIdl?: boolean) {
 //     try {
 //         // Check if we're connected to testnet or devnet
