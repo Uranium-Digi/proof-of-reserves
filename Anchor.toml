@@ -7,14 +7,14 @@ skip-lint = false
 
 [programs.localnet]
 oracle_updater = "DKuMPrGWQqGfCu9TbT6hLB6JCoLSryCaHLhLdYieY1KT"
-wrap_uranium = "3JmfgAqnGnyh8pXGo8w8bi6MGjfd3Jn4aaKqfJgb7UcQ"
+wrap_uranium = "6L33NZbnBxjerCLA4g5rVpHUc1LM4D6gQRrsxYi9zqj8"
 
 [registry]
 url = "https://api.apr.dev"
 
 [provider]
 cluster = "localnet"
-wallet = "/Users/hongjan/Documents/token-deployer/.secrets/tokenAuthority.json"
+wallet = "/Users/hongjan/Documents/proof-of-reserves/.secrets/tokenAuthority.json"
 
 [scripts]
 test = "cargo test"
