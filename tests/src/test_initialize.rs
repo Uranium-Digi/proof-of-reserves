@@ -497,8 +497,7 @@ async fn test_initialize() {
             &mut program
                 .request()
                 .accounts(wrap_uranium::accounts::Unwrap {
-                    signer: signer.pubkey(),
-                    owner: owner.pubkey(),
+                    owner: signer.pubkey(),
                     owner_wrapped_ata,
                     mint: mint.pubkey(),
                     wrapped_mint,
