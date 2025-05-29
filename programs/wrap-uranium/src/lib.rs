@@ -18,7 +18,10 @@ pub mod wrap_uranium {
     };
     use utils::{calculate_burn_amount, calculate_transfer_amount, get_mint_extension_data};
 
-    use crate::err::CustomError;
+    use crate::{
+        err::CustomError,
+        utils::{calculate_issuance_fee, calculate_redemption_fee},
+    };
 
     use super::*;
 
@@ -26,14 +29,21 @@ pub mod wrap_uranium {
         ctx.accounts.config.authority = ctx.accounts.signer.key();
         ctx.accounts.config.wrap_authority = ctx.accounts.signer.key();
         ctx.accounts.config.unwrap_authority = ctx.accounts.signer.key();
-
+        ctx.accounts.config.issuance_fee_rate = 0;
+        ctx.accounts.config.redemption_fee_rate = 0;
         Ok(())
     }
 
-    pub fn set_app_config(ctx: Context<SetConfig>) -> Result<()> {
+    pub fn set_app_config(
+        ctx: Context<SetConfig>,
+        new_issuance_fee_rate: u16,
+        new_redemption_fee_rate: u16,
+    ) -> Result<()> {
         ctx.accounts.config.authority = ctx.accounts.new_authority.key();
         ctx.accounts.config.wrap_authority = ctx.accounts.new_wrap_authority.key();
         ctx.accounts.config.unwrap_authority = ctx.accounts.new_unwrap_authority.key();
+        ctx.accounts.config.issuance_fee_rate = new_issuance_fee_rate;
+        ctx.accounts.config.redemption_fee_rate = new_redemption_fee_rate;
         Ok(())
     }
 
@@ -141,14 +151,18 @@ pub mod wrap_uranium {
         Ok(())
     }
 
-    pub fn mint_and_wrap(ctx: Context<MintAndWrap>, token_amount: u64) -> Result<()> {
+    pub fn mint_and_wrap(ctx: Context<MintAndWrap>, gross_issue: u64) -> Result<()> {
         let supply = ctx.accounts.mint.supply;
-        let new_supply = supply.checked_add(token_amount).unwrap(); // error if overflow
+        let new_supply = supply.checked_add(gross_issue).unwrap(); // error if overflow
         let reserved = ctx.accounts.reserves_account.reserves;
         if new_supply > reserved {
             return Err(CustomError::InsufficientReserves.into());
         }
+        // calculate fees now
+        let (issuance_fee, receivable) =
+            calculate_issuance_fee(gross_issue, ctx.accounts.config.issuance_fee_rate as u64)?;
 
+        // Minting the U token
         mint_to(
             CpiContext::new_with_signer(
                 ctx.accounts.token_program.to_account_info(),
@@ -163,15 +177,19 @@ pub mod wrap_uranium {
                     &[ctx.bumps.config],
                 ]],
             ),
-            token_amount,
+            gross_issue,
         )?;
 
+        // Minting the wU token to the issuance wallet pda wrapped ata
         mint_to(
             CpiContext::new_with_signer(
                 ctx.accounts.token_program.to_account_info(),
                 MintTo {
                     mint: ctx.accounts.wrapped_mint.to_account_info(),
-                    to: ctx.accounts.destination_wrapped_ata.to_account_info(),
+                    to: ctx
+                        .accounts
+                        .issuance_wallet_pda_wrapped_ata
+                        .to_account_info(),
                     authority: ctx.accounts.config.to_account_info(),
                 },
                 &[&[
@@ -180,31 +198,130 @@ pub mod wrap_uranium {
                     &[ctx.bumps.config],
                 ]],
             ),
-            token_amount,
+            gross_issue,
         )?;
+
+        // Transfer the wU token from the issuance wallet pda wrapped ata to the company wallet wrapped ata
+        transfer_checked(
+            CpiContext::new_with_signer(
+                ctx.accounts.token_program.to_account_info(),
+                TransferChecked {
+                    mint: ctx.accounts.wrapped_mint.to_account_info(),
+                    from: ctx
+                        .accounts
+                        .issuance_wallet_pda_wrapped_ata
+                        .to_account_info(),
+                    to: ctx.accounts.company_wallet_wrapped_ata.to_account_info(),
+                    authority: ctx.accounts.issuance_wallet_pda.to_account_info(),
+                },
+                &[&[
+                    b"issuance_wallet_pda",
+                    ctx.accounts.mint.key().as_ref(),
+                    &[ctx.bumps.config],
+                ]],
+            ),
+            issuance_fee,
+            ctx.accounts.wrapped_mint.decimals,
+        )?;
+        // Transfer the wU token from the issuance wallet pda wrapped ata to the master wallet wrapped ata
+        transfer_checked(
+            CpiContext::new_with_signer(
+                ctx.accounts.token_program.to_account_info(),
+                TransferChecked {
+                    mint: ctx.accounts.wrapped_mint.to_account_info(),
+                    from: ctx
+                        .accounts
+                        .issuance_wallet_pda_wrapped_ata
+                        .to_account_info(),
+                    to: ctx.accounts.master_wallet_wrapped_ata.to_account_info(),
+                    authority: ctx.accounts.config.to_account_info(),
+                },
+                &[&[
+                    b"issuance_wallet_pda",
+                    ctx.accounts.mint.key().as_ref(),
+                    &[ctx.bumps.config],
+                ]],
+            ),
+            receivable,
+            ctx.accounts.wrapped_mint.decimals,
+        )?;
+
         Ok(())
     }
 
-    pub fn unwrap_and_burn(ctx: Context<UnwrapAndBurn>, token_amount: u64) -> Result<()> {
+    pub fn unwrap_and_burn(ctx: Context<UnwrapAndBurn>, gross_redeem: u64) -> Result<()> {
+        // calculation redemption fees
+
+        let (redemption_fee, redeemable) =
+            calculate_redemption_fee(gross_redeem, ctx.accounts.config.redemption_fee_rate as u64)?;
+
+        // Transfer the wU token from the owner wrapped ata to the redemption wallet pda wrapped ata
+        transfer_checked(
+            CpiContext::new(
+                ctx.accounts.token_program.to_account_info(),
+                TransferChecked {
+                    mint: ctx.accounts.wrapped_mint.to_account_info(),
+                    from: ctx.accounts.owner_wrapped_ata.to_account_info(),
+                    to: ctx
+                        .accounts
+                        .redemption_wallet_pda_wrapped_ata
+                        .to_account_info(),
+                    authority: ctx.accounts.owner.to_account_info(),
+                },
+            ),
+            gross_redeem,
+            ctx.accounts.wrapped_mint.decimals,
+        )?;
+
+        // Transfer the wU token from the redemption wallet pda wrapped ata to the company wallet wrapped ata
+        transfer_checked(
+            CpiContext::new_with_signer(
+                ctx.accounts.token_program.to_account_info(),
+                TransferChecked {
+                    mint: ctx.accounts.wrapped_mint.to_account_info(),
+                    from: ctx
+                        .accounts
+                        .redemption_wallet_pda_wrapped_ata
+                        .to_account_info(),
+                    to: ctx.accounts.company_wallet_wrapped_ata.to_account_info(),
+                    authority: ctx.accounts.redemption_wallet_pda.to_account_info(),
+                },
+                &[&[
+                    b"redemption_wallet_pda",
+                    ctx.accounts.mint.key().as_ref(),
+                    &[ctx.bumps.config],
+                ]],
+            ),
+            redemption_fee,
+            ctx.accounts.wrapped_mint.decimals,
+        )?;
+
         let epoch = Clock::get()?.epoch;
         let mint_data = &mut ctx.accounts.mint.to_account_info();
         let transfer_fee_config = get_mint_extension_data::<TransferFeeConfig>(mint_data)?;
 
         let fee = transfer_fee_config.get_epoch_fee(epoch);
-        let (amount_from_ata, amount_from_fee_reserve) = calculate_burn_amount(&fee, token_amount)?;
+        let (amount_from_ata, amount_from_fee_reserve) = calculate_burn_amount(&fee, redeemable)?;
 
+        // Burn the wU from the redemption wallet pda wrapped ata
         burn(
-            CpiContext::new(
+            CpiContext::new_with_signer(
                 ctx.accounts.token_program.to_account_info(),
                 Burn {
                     mint: ctx.accounts.wrapped_mint.to_account_info(),
                     from: ctx.accounts.owner_wrapped_ata.to_account_info(),
-                    authority: ctx.accounts.owner.to_account_info(),
+                    authority: ctx.accounts.redemption_wallet_pda.to_account_info(),
                 },
+                &[&[
+                    b"redemption_wallet_pda",
+                    ctx.accounts.mint.key().as_ref(),
+                    &[ctx.bumps.config],
+                ]],
             ),
-            token_amount,
+            redeemable,
         )?;
 
+        // Burning the U token from the mint wrapped ata
         burn(
             CpiContext::new_with_signer(
                 ctx.accounts.token_program.to_account_info(),
@@ -222,6 +339,7 @@ pub mod wrap_uranium {
             amount_from_ata,
         )?;
 
+        // Burning the wU token from the fee rebate reserve
         burn(
             CpiContext::new_with_signer(
                 ctx.accounts.token_program.to_account_info(),

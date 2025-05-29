@@ -6,4 +6,6 @@ pub enum CustomError {
     YouAreNotUnwrapAuthority,
     InvalidFee,
     InsufficientReserves,
+    IssuanceFeeCalculationError,
+    RedemptionFeeCalculationError,
 }

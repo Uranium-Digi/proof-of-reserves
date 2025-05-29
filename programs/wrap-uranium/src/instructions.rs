@@ -183,6 +183,7 @@ pub struct SetConfig<'info> {
     pub new_wrap_authority: AccountInfo<'info>,
     /// CHECK: This is not dangerous because we don't read or write from this account
     pub new_unwrap_authority: AccountInfo<'info>,
+
 }
 
 #[derive(Accounts)]
@@ -323,6 +324,7 @@ pub struct Unwrap<'info> {
     pub system_program: Program<'info, System>,
 }
 
+
 #[derive(Accounts)]
 pub struct MintAndWrap<'info> {
     #[account(
@@ -355,18 +357,44 @@ pub struct MintAndWrap<'info> {
     )]
     pub wrapped_mint: InterfaceAccount<'info, Mint>,
 
-    /// CHECK: destination is not dangerous because we don't read or write from this account
-    #[account()]
-    pub destination: AccountInfo<'info>,
+    
+    #[account(
+        seeds = [b"issuance_wallet_pda", mint.key().as_ref()],
+        bump,
+    )]
+    pub issuance_wallet_pda: AccountInfo<'info>,
 
     #[account(
-        init_if_needed,
-        payer = signer,
+        mut,
         associated_token::mint = wrapped_mint,
-        associated_token::authority = destination,
+        associated_token::authority = issuance_wallet_pda,
         associated_token::token_program = token_program
     )]
-    pub destination_wrapped_ata: InterfaceAccount<'info, TokenAccount>,
+    pub issuance_wallet_pda_wrapped_ata: InterfaceAccount<'info, TokenAccount>,
+    
+
+    /// CHECK: destination is not dangerous because we don't read or write from this account
+    #[account()]
+    pub master_wallet: AccountInfo<'info>,
+
+    #[account(
+        mut,
+        associated_token::mint = wrapped_mint,
+        associated_token::authority = master_wallet,
+        associated_token::token_program = token_program
+    )]
+    pub master_wallet_wrapped_ata: InterfaceAccount<'info, TokenAccount>,
+
+    #[account()]
+    pub company_wallet: AccountInfo<'info>,
+
+    #[account(
+        mut,
+        associated_token::mint = wrapped_mint,
+        associated_token::authority = company_wallet,
+        associated_token::token_program = token_program
+    )]
+    pub company_wallet_wrapped_ata: InterfaceAccount<'info, TokenAccount>,
 
     #[account(
         mut, 
@@ -391,12 +419,44 @@ pub struct MintAndWrap<'info> {
 pub struct UnwrapAndBurn<'info> {
     #[account(
         mut,
-        constraint = signer.key() == config.wrap_authority @ CustomError::YouAreNotUnwrapAuthority
+        constraint = owner.key() == config.unwrap_authority @ CustomError::YouAreNotUnwrapAuthority
     )]
-    pub signer: Signer<'info>,
-
-    #[account(signer)]
     pub owner: Signer<'info>,
+
+    #[account(
+        mut,
+        associated_token::mint = wrapped_mint,
+        associated_token::authority = owner,
+        associated_token::token_program = token_program
+    )]
+    pub owner_wrapped_ata: InterfaceAccount<'info, TokenAccount>,
+
+    #[account(
+        seeds = [b"redemption_wallet_pda", mint.key().as_ref()],
+        bump,
+    )]
+    pub redemption_wallet_pda: AccountInfo<'info>,
+
+    #[account(
+        mut,
+        associated_token::mint = wrapped_mint,
+        associated_token::authority = redemption_wallet_pda,
+        associated_token::token_program = token_program
+    )]
+    pub redemption_wallet_pda_wrapped_ata: InterfaceAccount<'info, TokenAccount>,
+    
+
+    #[account()]
+    pub company_wallet: AccountInfo<'info>,
+    
+    #[account(
+        mut,
+        associated_token::mint = wrapped_mint,
+        associated_token::authority = company_wallet,
+        associated_token::token_program = token_program,
+    )]
+    pub company_wallet_wrapped_ata: InterfaceAccount<'info, TokenAccount>,
+
 
     #[account(
         seeds = [b"config", mint.key().as_ref()],
@@ -421,14 +481,7 @@ pub struct UnwrapAndBurn<'info> {
     )]
     pub wrapped_mint: InterfaceAccount<'info, Mint>,
 
-    #[account(
-        mut,
-        associated_token::mint = wrapped_mint,
-        associated_token::authority = owner,
-        associated_token::token_program = token_program
-    )]
-    pub owner_wrapped_ata: InterfaceAccount<'info, TokenAccount>,
-
+    
     #[account(
         mut, 
         associated_token::mint = mint,
@@ -436,6 +489,7 @@ pub struct UnwrapAndBurn<'info> {
         associated_token::token_program = token_program
     )]
     pub mint_ata: InterfaceAccount<'info, TokenAccount>,
+
 
     #[account(
         mut, 
