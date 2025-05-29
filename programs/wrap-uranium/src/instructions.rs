@@ -348,6 +348,15 @@ pub struct MintAndWrap<'info> {
     pub mint: InterfaceAccount<'info, Mint>,
 
     #[account(
+        mut, 
+        associated_token::mint = mint,
+        associated_token::authority = config,
+        associated_token::token_program = token_program
+    )]
+    pub mint_ata: InterfaceAccount<'info, TokenAccount>,
+
+
+    #[account(
         mut,
         seeds = [b"wrapped_mint", mint.key().as_ref()],
         bump,
@@ -357,7 +366,7 @@ pub struct MintAndWrap<'info> {
     )]
     pub wrapped_mint: InterfaceAccount<'info, Mint>,
 
-    
+    /// CHECK: issuance_wallet_pda is not dangerous because we don't read or write from this account
     #[account(
         seeds = [b"issuance_wallet_pda", mint.key().as_ref()],
         bump,
@@ -373,7 +382,7 @@ pub struct MintAndWrap<'info> {
     pub issuance_wallet_pda_wrapped_ata: InterfaceAccount<'info, TokenAccount>,
     
 
-    /// CHECK: destination is not dangerous because we don't read or write from this account
+    /// CHECK: master_wallet is not dangerous because we don't read or write from this account
     #[account()]
     pub master_wallet: AccountInfo<'info>,
 
@@ -385,6 +394,8 @@ pub struct MintAndWrap<'info> {
     )]
     pub master_wallet_wrapped_ata: InterfaceAccount<'info, TokenAccount>,
 
+
+    /// CHECK: company_wallet is not dangerous because we don't read or write from this account
     #[account()]
     pub company_wallet: AccountInfo<'info>,
 
@@ -395,14 +406,6 @@ pub struct MintAndWrap<'info> {
         associated_token::token_program = token_program
     )]
     pub company_wallet_wrapped_ata: InterfaceAccount<'info, TokenAccount>,
-
-    #[account(
-        mut, 
-        associated_token::mint = mint,
-        associated_token::authority = config,
-        associated_token::token_program = token_program
-    )]
-    pub mint_ata: InterfaceAccount<'info, TokenAccount>,
 
     pub token_program: Program<'info, Token2022>,
     pub associated_token_program: Program<'info, AssociatedToken>,
@@ -430,33 +433,7 @@ pub struct UnwrapAndBurn<'info> {
         associated_token::token_program = token_program
     )]
     pub owner_wrapped_ata: InterfaceAccount<'info, TokenAccount>,
-
-    #[account(
-        seeds = [b"redemption_wallet_pda", mint.key().as_ref()],
-        bump,
-    )]
-    pub redemption_wallet_pda: AccountInfo<'info>,
-
-    #[account(
-        mut,
-        associated_token::mint = wrapped_mint,
-        associated_token::authority = redemption_wallet_pda,
-        associated_token::token_program = token_program
-    )]
-    pub redemption_wallet_pda_wrapped_ata: InterfaceAccount<'info, TokenAccount>,
     
-
-    #[account()]
-    pub company_wallet: AccountInfo<'info>,
-    
-    #[account(
-        mut,
-        associated_token::mint = wrapped_mint,
-        associated_token::authority = company_wallet,
-        associated_token::token_program = token_program,
-    )]
-    pub company_wallet_wrapped_ata: InterfaceAccount<'info, TokenAccount>,
-
 
     #[account(
         seeds = [b"config", mint.key().as_ref()],
@@ -472,6 +449,15 @@ pub struct UnwrapAndBurn<'info> {
     pub mint: InterfaceAccount<'info, Mint>,
 
     #[account(
+        mut, 
+        associated_token::mint = mint,
+        associated_token::authority = config,
+        associated_token::token_program = token_program
+    )]
+    pub mint_ata: InterfaceAccount<'info, TokenAccount>,
+
+
+    #[account(
         mut,
         seeds = [b"wrapped_mint", mint.key().as_ref()],
         bump,
@@ -481,15 +467,32 @@ pub struct UnwrapAndBurn<'info> {
     )]
     pub wrapped_mint: InterfaceAccount<'info, Mint>,
 
-    
+    /// CHECK: redemption_wallet_pda is not dangerous because we don't read or write from this account
     #[account(
-        mut, 
-        associated_token::mint = mint,
-        associated_token::authority = config,
+        seeds = [b"redemption_wallet_pda", mint.key().as_ref()],
+        bump,
+    )]
+    pub redemption_wallet_pda: AccountInfo<'info>,
+
+    #[account(
+        mut,
+        associated_token::mint = wrapped_mint,
+        associated_token::authority = redemption_wallet_pda,
         associated_token::token_program = token_program
     )]
-    pub mint_ata: InterfaceAccount<'info, TokenAccount>,
-
+    pub redemption_wallet_pda_wrapped_ata: InterfaceAccount<'info, TokenAccount>,
+    
+    /// CHECK: company_wallet is not dangerous because we don't read or write from this account
+    #[account()]
+    pub company_wallet: AccountInfo<'info>,
+    
+    #[account(
+        mut,
+        associated_token::mint = wrapped_mint,
+        associated_token::authority = company_wallet,
+        associated_token::token_program = token_program,
+    )]
+    pub company_wallet_wrapped_ata: InterfaceAccount<'info, TokenAccount>,
 
     #[account(
         mut, 
