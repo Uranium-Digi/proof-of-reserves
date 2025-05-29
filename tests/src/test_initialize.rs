@@ -188,7 +188,7 @@ async fn init_chainlink_verifier(signer: &Keypair) -> Pubkey {
 #[tokio::test]
 // #[test]
 async fn test_initialize() {
-    let program_id = Pubkey::from_str("3JmfgAqnGnyh8pXGo8w8bi6MGjfd3Jn4aaKqfJgb7UcQ").unwrap();
+    let program_id = wrap_uranium::ID;
     let anchor_wallet = std::env::var(WALLET_KEY).unwrap();
     let signer = read_keypair_file(&anchor_wallet).unwrap();
 
@@ -360,6 +360,19 @@ async fn test_initialize() {
                     system_program: solana_program::system_program::ID,
                 })
                 .args(wrap_uranium::instruction::Initialize {})
+                .instructions()
+                .unwrap(),
+        );
+        ixs.append(
+            &mut program
+                .request()
+                .accounts(wrap_uranium::accounts::DepositMintAuthority {
+                    signer: signer.pubkey(),
+                    config,
+                    mint: mint.pubkey(),
+                    token_program: spl_token_2022::ID,
+                })
+                .args(wrap_uranium::instruction::DepositMintAuthority {})
                 .instructions()
                 .unwrap(),
         );
@@ -556,20 +569,6 @@ async fn test_initialize() {
             &wrapped_mint,
             &spl_token_2022::ID,
         ));
-
-        ixs.append(
-            &mut program
-                .request()
-                .accounts(wrap_uranium::accounts::DepositMintAuthority {
-                    signer: signer.pubkey(),
-                    config,
-                    mint: mint.pubkey(),
-                    token_program: spl_token_2022::ID,
-                })
-                .args(wrap_uranium::instruction::DepositMintAuthority {})
-                .instructions()
-                .unwrap(),
-        );
 
         ixs.append(
             &mut program
