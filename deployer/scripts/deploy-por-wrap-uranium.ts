@@ -58,9 +58,10 @@ async function deployToken(): Promise<PublicKey> {
         100, // initial supply
     )
     console.log('Token deployed:', tokenMint.toString())
-
+    await new Promise((resolve) => setTimeout(resolve, 10000))
     // update the token mint in the config.ts file
     await writeUraniumTokenAddressToConfig(tokenMint.toString())
+
     return tokenMint
 }
 
@@ -102,7 +103,7 @@ async function deployWrappedToken(): Promise<{
 
     // Deploy the wrapped token program
     execSync(`anchor deploy --provider.cluster ${RPC_URL} -p wrap-uranium`, { stdio: 'inherit' })
-
+    await new Promise((resolve) => setTimeout(resolve, 10000))
     //
     return {
         wrapUraniumIdl,
@@ -178,6 +179,7 @@ export async function initialize(
                 commitment: 'confirmed',
             },
         )
+        await new Promise((resolve) => setTimeout(resolve, 10000))
         console.log('\n🎉 Transaction successful! 🎉\n Signature:', tx)
     } catch (e: any) {
         console.error('Transaction failed', e)
@@ -198,7 +200,7 @@ export async function mintToFeeRebateReserve(
         [Buffer.from('fee_rebate_reserve_u_ata'), u.toBuffer()],
         programWrapUranium.programId,
     )
-
+    console.log('mintToFeeRebateReserve | feeRebateReserveUAta:', feeRebateReserveUAta)
     try {
         const tx = await mintTo(
             anchorConnection,
@@ -208,13 +210,14 @@ export async function mintToFeeRebateReserve(
             tokenAuthority,
             amount,
             [],
-            undefined,
+            { commitment: 'processed' },
             TOKEN_2022_PROGRAM_ID,
         )
         console.log(
             `Minted ${amount.toString()} tokens to ${feeRebateReserveUAta.toString()} - the feeRebateReserveAta`,
         )
         console.log('Mint to feeRebateReserveUAta tx: ', tx)
+        await new Promise((resolve) => setTimeout(resolve, 10000))
     } catch (e: any) {
         console.error('mintToFeeRebateReserve failed', e)
         console.log(await e.getLogs())
@@ -259,6 +262,7 @@ export async function depositMintAuthority(
             },
         )
         console.log('\n🎉 DepositMintAuthority Transaction successful! 🎉\n Signature:', tx)
+        await new Promise((resolve) => setTimeout(resolve, 10000))
     } catch (e: any) {
         console.error('DepositMintAuthority failed', e)
         console.log(e.getLogs())
@@ -407,8 +411,6 @@ async function main(
 
     if (!uraniumTokenAddress) {
         tokenMint = await deployToken()
-        // wait 10 seconds for the deployment to settle
-        await new Promise((resolve) => setTimeout(resolve, 10000))
     } else {
         tokenMint = new PublicKey(uraniumTokenAddress)
         await writeUraniumTokenAddressToConfig(uraniumTokenAddress)
@@ -429,16 +431,14 @@ async function main(
     } else {
         const { wrapUraniumIdl: idl_from_new_deployment } = await deployWrappedToken()
         wrapUraniumIdl = idl_from_new_deployment
-        await new Promise((resolve) => setTimeout(resolve, 10000))
     }
 
     const tokenAuthority = await WalletManager.getTokenAuthority()
     const fundingWallet = await WalletManager.getFundingWallet()
-    await initialize(tokenAuthority, fundingWallet, wrapUraniumIdl, tokenMint.toBase58())
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-    await mintToFeeRebateReserve(tokenAuthority, fundingWallet, wrapUraniumIdl, tokenMint.toBase58(), 1000000)
 
-    await new Promise((resolve) => setTimeout(resolve, 1000))
+    await initialize(tokenAuthority, fundingWallet, wrapUraniumIdl, tokenMint.toBase58())
+
+    await mintToFeeRebateReserve(tokenAuthority, fundingWallet, wrapUraniumIdl, tokenMint.toBase58(), 1000000)
 
     await depositMintAuthority(tokenAuthority, fundingWallet, wrapUraniumIdl, tokenMint.toBase58())
 }
