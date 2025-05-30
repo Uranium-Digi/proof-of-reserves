@@ -9,7 +9,7 @@ dotenv.config({ path: path.resolve(__dirname, '../../.env') })
 
 // Program IDs
 export const WRAP_TOKEN_PROGRAM_ID = 'HbMJgorqybuweCMEeXXg5HqPBAzLCfqiMEpqGrR2Dc9r'
-export const TOKEN_ADDRESS = '6dNGxiQoHvuvEtJHsbnhave7RLVpHJoLyLpPMWe8L1e3'
+export const TOKEN_ADDRESS = '9xNQZsqB2fYGFG8hPGh85GHBp4izaJ8mbFmmURzVDDM'
 
 // Connection
 export const NETWORK_USED: string = process.env.NETWORK_USED || 'devnet'

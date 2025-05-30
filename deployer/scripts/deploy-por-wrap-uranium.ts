@@ -192,9 +192,6 @@ export async function mintToFeeRebateReserve(
     uraniumTokenAddress: string,
     amount: number,
 ) {
-    // const fundingWallet = await WalletManager.getFundingWallet()
-    // const wallet = new anchor.Wallet(tokenAuthority)
-    // const payer = new anchor.Wallet(fundingWallet)
     const u = await uraniumToken(uraniumTokenAddress)
     const programWrapUranium = await wrapUraniumProgram(wrapUraniumIDL)
     const [feeRebateReserveUAta] = anchor.web3.PublicKey.findProgramAddressSync(
@@ -202,19 +199,26 @@ export async function mintToFeeRebateReserve(
         programWrapUranium.programId,
     )
 
-    const tx = await mintTo(
-        anchorConnection,
-        fundingWallet,
-        u,
-        feeRebateReserveUAta,
-        tokenAuthority,
-        amount,
-        [],
-        undefined,
-        TOKEN_2022_PROGRAM_ID,
-    )
-    console.log(`Minted ${amount.toString()} tokens to ${feeRebateReserveUAta.toString()} - the feeRebateReserveAta`)
-    console.log('Mint to feeRebateReserveUAta tx: ', tx)
+    try {
+        const tx = await mintTo(
+            anchorConnection,
+            fundingWallet,
+            u,
+            feeRebateReserveUAta,
+            tokenAuthority,
+            amount,
+            [],
+            undefined,
+            TOKEN_2022_PROGRAM_ID,
+        )
+        console.log(
+            `Minted ${amount.toString()} tokens to ${feeRebateReserveUAta.toString()} - the feeRebateReserveAta`,
+        )
+        console.log('Mint to feeRebateReserveUAta tx: ', tx)
+    } catch (e: any) {
+        console.error('mintToFeeRebateReserve failed', e)
+        console.log(await e.getLogs())
+    }
 }
 
 export async function depositMintAuthority(
@@ -237,7 +241,7 @@ export async function depositMintAuthority(
         .accountsPartial({
             signer: tokenAuthority.publicKey,
             config: configPDA,
-            mint: u,
+            u: u,
             token_program: TOKEN_2022_PROGRAM_ID,
         })
         .signers([tokenAuthority])
@@ -431,10 +435,12 @@ async function main(
     const tokenAuthority = await WalletManager.getTokenAuthority()
     const fundingWallet = await WalletManager.getFundingWallet()
     await initialize(tokenAuthority, fundingWallet, wrapUraniumIdl, tokenMint.toBase58())
+    await new Promise((resolve) => setTimeout(resolve, 1000))
+    await mintToFeeRebateReserve(tokenAuthority, fundingWallet, wrapUraniumIdl, tokenMint.toBase58(), 1000000)
 
-    // await mintToFeeRebateReserve(tokenAuthority, fundingWallet, wrapUraniumIdl, tokenMint.toBase58(), 1000000)
+    await new Promise((resolve) => setTimeout(resolve, 1000))
 
-    // await depositMintAuthority(tokenAuthority, fundingWallet, wrapUraniumIdl, tokenMint.toBase58())
+    await depositMintAuthority(tokenAuthority, fundingWallet, wrapUraniumIdl, tokenMint.toBase58())
 }
 
 main()
