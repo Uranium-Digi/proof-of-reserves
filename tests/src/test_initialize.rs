@@ -363,6 +363,23 @@ async fn test_initialize() {
                 .instructions()
                 .unwrap(),
         );
+        println!("Minting to fee rebate reserve");
+
+        let mut ixs = vec![];
+
+        ixs.push(
+            spl_token_2022::instruction::mint_to(
+                &spl_token_2022::ID,
+                &mint.pubkey(),
+                &fee_rebate_reserve,
+                &signer.pubkey(),
+                &[],
+                1_000_000 * LAMPORTS_PER_SOL,
+            )
+            .unwrap(),
+        );
+
+        println!("Depositing mint authority");
         ixs.append(
             &mut program
                 .request()
@@ -378,24 +395,6 @@ async fn test_initialize() {
         );
 
         send_tx(&rpc, ixs, &signer.pubkey(), &[&signer, &mint]).await;
-    }
-
-    println!("Minting to fee rebate reserve");
-    {
-        let mut ixs = vec![];
-
-        ixs.push(
-            spl_token_2022::instruction::mint_to(
-                &spl_token_2022::ID,
-                &mint.pubkey(),
-                &fee_rebate_reserve,
-                &signer.pubkey(),
-                &[],
-                1_000_000 * LAMPORTS_PER_SOL,
-            )
-            .unwrap(),
-        );
-        send_tx(&rpc, ixs, &signer.pubkey(), &[&signer]).await;
     }
 
     println!("Wrapping");
