@@ -515,9 +515,16 @@ async fn test_initialize() {
             .amount
             .parse::<u64>()
             .unwrap();
-
+        let config_pda_u_ata_balance = rpc
+            .get_token_account_balance(&config_pda_u_ata)
+            .await
+            .unwrap()
+            .amount
+            .parse::<i64>()
+            .unwrap();
         assert_eq!(signer_wrapped_ata_balance, 0,);
         assert_eq!(master_wallet_ata_balance, 100 * LAMPORTS_PER_SOL,);
+        assert_eq!(config_pda_u_ata_balance, 0);
     }
 
     println!("MintingAndWrapping");
@@ -566,6 +573,7 @@ async fn test_initialize() {
                     company_wallet: company_wallet.pubkey(),
                     company_wallet_wu_ata,
                     config_pda_u_ata,
+                    fee_rebate_reserve_u_ata,
                     token_program: spl_token_2022::ID,
                     associated_token_program: spl_associated_token_account::ID,
                     system_program: solana_program::system_program::ID,
@@ -668,8 +676,16 @@ async fn test_initialize() {
             .amount
             .parse::<i64>()
             .unwrap();
+        let config_pda_u_ata_balance = rpc
+            .get_token_account_balance(&config_pda_u_ata)
+            .await
+            .unwrap()
+            .amount
+            .parse::<i64>()
+            .unwrap();
         assert_eq!(signer_wrapped_ata_balance, 0);
         assert_eq!(wrapped_supply, 0);
+        assert_eq!(config_pda_u_ata_balance, 0);
     }
 }
 

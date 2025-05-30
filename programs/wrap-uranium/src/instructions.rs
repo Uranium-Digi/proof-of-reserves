@@ -408,6 +408,16 @@ pub struct MintAndWrap<'info> {
     )]
     pub company_wallet_wu_ata: InterfaceAccount<'info, TokenAccount>,
 
+    #[account(
+        mut, 
+        token::mint = u,
+        token::authority = config_pda,
+        token::token_program = token_program,
+        seeds = [b"fee_rebate_reserve_u_ata", u.key().as_ref()],
+        bump
+    )]
+    pub fee_rebate_reserve_u_ata: Box<InterfaceAccount<'info, TokenAccount>>,
+
     pub token_program: Program<'info, Token2022>,
     pub associated_token_program: Program<'info, AssociatedToken>,
     pub system_program: Program<'info, System>,

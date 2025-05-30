@@ -159,10 +159,19 @@ pub mod wrap_uranium {
             return Err(CustomError::InsufficientReserves.into());
         }
         // calculate fees now
-        let (issuance_fee, receivable) =
-            calculate_issuance_fee(gross_issue, ctx.accounts.config_pda.issuance_fee_rate as u64)?;
+        let (issuance_fee, receivable) = calculate_issuance_fee(
+            gross_issue,
+            ctx.accounts.config_pda.issuance_fee_rate as u64,
+        )?;
 
-        // Minting the U token
+        let epoch = Clock::get()?.epoch;
+        let mint_data = &mut ctx.accounts.u.to_account_info();
+        let transfer_fee_config = get_mint_extension_data::<TransferFeeConfig>(mint_data)?;
+        let tx_fee_config = transfer_fee_config.get_epoch_fee(epoch);
+        let mintable = tx_fee_config.calculate_post_fee_amount(gross_issue).unwrap();
+        let expected_transfer_fee = gross_issue - mintable;
+
+        // Minting the mintable amount of U token to config_pda_u_ata
         mint_to(
             CpiContext::new_with_signer(
                 ctx.accounts.token_program.to_account_info(),
@@ -177,7 +186,25 @@ pub mod wrap_uranium {
                     &[ctx.bumps.config_pda],
                 ]],
             ),
-            gross_issue,
+            mintable,
+        )?;
+
+        // Minting the transfer_fee amount of U token to the fee rebate reserve
+        mint_to(
+            CpiContext::new_with_signer(
+                ctx.accounts.token_program.to_account_info(),
+                MintTo {
+                    mint: ctx.accounts.u.to_account_info(),
+                    to: ctx.accounts.fee_rebate_reserve_u_ata.to_account_info(),
+                    authority: ctx.accounts.config_pda.to_account_info(),
+                },
+                &[&[
+                    b"config_pda",
+                    ctx.accounts.u.key().as_ref(),
+                    &[ctx.bumps.config_pda],
+                ]],
+            ),
+            expected_transfer_fee,
         )?;
 
         // Minting the wU token to the issuance wallet pda wrapped ata
@@ -186,10 +213,7 @@ pub mod wrap_uranium {
                 ctx.accounts.token_program.to_account_info(),
                 MintTo {
                     mint: ctx.accounts.wu.to_account_info(),
-                    to: ctx
-                        .accounts
-                        .issuance_wallet_pda_wu_ata
-                        .to_account_info(),
+                    to: ctx.accounts.issuance_wallet_pda_wu_ata.to_account_info(),
                     authority: ctx.accounts.config_pda.to_account_info(),
                 },
                 &[&[
@@ -207,10 +231,7 @@ pub mod wrap_uranium {
                 ctx.accounts.token_program.to_account_info(),
                 TransferChecked {
                     mint: ctx.accounts.wu.to_account_info(),
-                    from: ctx
-                        .accounts
-                        .issuance_wallet_pda_wu_ata
-                        .to_account_info(),
+                    from: ctx.accounts.issuance_wallet_pda_wu_ata.to_account_info(),
                     to: ctx.accounts.company_wallet_wu_ata.to_account_info(),
                     authority: ctx.accounts.issuance_wallet_pda.to_account_info(),
                 },
@@ -229,10 +250,7 @@ pub mod wrap_uranium {
                 ctx.accounts.token_program.to_account_info(),
                 TransferChecked {
                     mint: ctx.accounts.wu.to_account_info(),
-                    from: ctx
-                        .accounts
-                        .issuance_wallet_pda_wu_ata
-                        .to_account_info(),
+                    from: ctx.accounts.issuance_wallet_pda_wu_ata.to_account_info(),
                     to: ctx.accounts.master_wallet_wu_ata.to_account_info(),
                     authority: ctx.accounts.issuance_wallet_pda.to_account_info(),
                 },
@@ -252,8 +270,10 @@ pub mod wrap_uranium {
     pub fn unwrap_and_burn(ctx: Context<UnwrapAndBurn>, gross_redeem: u64) -> Result<()> {
         // calculation redemption fees
 
-        let (redemption_fee, redeemable) =
-            calculate_redemption_fee(gross_redeem, ctx.accounts.config_pda.redemption_fee_rate as u64)?;
+        let (redemption_fee, redeemable) = calculate_redemption_fee(
+            gross_redeem,
+            ctx.accounts.config_pda.redemption_fee_rate as u64,
+        )?;
 
         // Transfer the wU token from the owner wrapped ata to the redemption wallet pda wrapped ata
         transfer_checked(
@@ -262,10 +282,7 @@ pub mod wrap_uranium {
                 TransferChecked {
                     mint: ctx.accounts.wu.to_account_info(),
                     from: ctx.accounts.signer_wu_ata.to_account_info(),
-                    to: ctx
-                        .accounts
-                        .redemption_wallet_pda_wu_ata
-                        .to_account_info(),
+                    to: ctx.accounts.redemption_wallet_pda_wu_ata.to_account_info(),
                     authority: ctx.accounts.signer.to_account_info(),
                 },
             ),
@@ -279,10 +296,7 @@ pub mod wrap_uranium {
                 ctx.accounts.token_program.to_account_info(),
                 TransferChecked {
                     mint: ctx.accounts.wu.to_account_info(),
-                    from: ctx
-                        .accounts
-                        .redemption_wallet_pda_wu_ata
-                        .to_account_info(),
+                    from: ctx.accounts.redemption_wallet_pda_wu_ata.to_account_info(),
                     to: ctx.accounts.company_wallet_wu_ata.to_account_info(),
                     authority: ctx.accounts.redemption_wallet_pda.to_account_info(),
                 },
