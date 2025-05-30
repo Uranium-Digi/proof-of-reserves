@@ -365,8 +365,6 @@ async fn test_initialize() {
         );
         println!("Minting to fee rebate reserve");
 
-        let mut ixs = vec![];
-
         ixs.push(
             spl_token_2022::instruction::mint_to(
                 &spl_token_2022::ID,
