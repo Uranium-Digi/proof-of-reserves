@@ -7,7 +7,7 @@ import { spitOutWallets } from '../src/convertKey'
 import WalletManager from '../src/WalletManager'
 import Common from '../src/Common'
 import { TokenFactory } from '../src/TokenFactory'
-import { connection, RPC_URL, NETWORK_USED, uraniumToken, uraniumToken, wrapUraniumProgram } from '../src/config'
+import { connection, RPC_URL, NETWORK_USED, wrapUraniumProgram, uraniumToken } from '../src/config'
 import * as anchor from '@coral-xyz/anchor'
 import {
     TOKEN_2022_PROGRAM_ID,
@@ -134,10 +134,19 @@ export async function initialize(
         [Buffer.from('config_pda'), u.toBuffer()],
         programWrapUranium.programId,
     )
-    const [configPdaUAta] = anchor.web3.PublicKey.findProgramAddressSync(
-        [Buffer.from('config_pda_u_ata'), u.toBuffer()],
-        programWrapUranium.programId,
+    // const [configPdaUAta] = anchor.web3.PublicKey.findProgramAddressSync(
+    //     [Buffer.from('config_pda_u_ata'), u.toBuffer()],
+    //     programWrapUranium.programId,
+    // )
+
+    const configPdaUAta = await getAssociatedTokenAddress(
+        u,
+        configPda,
+        true, // allowOwnerOffCurve
+        TOKEN_2022_PROGRAM_ID,
+        ASSOCIATED_TOKEN_PROGRAM_ID,
     )
+
     const [feeRebateReserveUAta] = anchor.web3.PublicKey.findProgramAddressSync(
         [Buffer.from('fee_rebate_reserve_u_ata'), u.toBuffer()],
         programWrapUranium.programId,
@@ -147,9 +156,9 @@ export async function initialize(
         .initialize()
         .accountsPartial({
             signer: tokenAuthority.publicKey,
-            u,
-            wu,
-            configPda,
+            u, //
+            wu, //
+            configPda, //
             configPdaUAta,
             feeRebateReserveUAta,
             token_program: TOKEN_2022_PROGRAM_ID,
@@ -194,7 +203,7 @@ export async function mintToFeeRebateReserve(
     )
 
     const tx = await mintTo(
-        this.common.connection,
+        anchorConnection,
         fundingWallet,
         u,
         feeRebateReserveUAta,
@@ -238,7 +247,7 @@ export async function depositMintAuthority(
 
     try {
         const tx = await anchor.web3.sendAndConfirmTransaction(
-            this.common.connection,
+            anchorConnection,
             transaction,
             [fundingWallet, tokenAuthority],
             {
@@ -423,9 +432,9 @@ async function main(
     const fundingWallet = await WalletManager.getFundingWallet()
     await initialize(tokenAuthority, fundingWallet, wrapUraniumIdl, tokenMint.toBase58())
 
-    await mintToFeeRebateReserve(tokenAuthority, fundingWallet, wrapUraniumIdl, tokenMint.toBase58(), 1000000)
+    // await mintToFeeRebateReserve(tokenAuthority, fundingWallet, wrapUraniumIdl, tokenMint.toBase58(), 1000000)
 
-    await depositMintAuthority(tokenAuthority, fundingWallet, wrapUraniumIdl, tokenMint.toBase58())
+    // await depositMintAuthority(tokenAuthority, fundingWallet, wrapUraniumIdl, tokenMint.toBase58())
 }
 
 main()
