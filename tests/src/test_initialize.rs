@@ -301,6 +301,7 @@ async fn test_initialize() {
         .unwrap();
     println!("Initializing");
     {
+        // Init mint with transfer fee
         let mut ixs = vec![
             create_account(
                 &signer.pubkey(),
@@ -309,7 +310,6 @@ async fn test_initialize() {
                 space as u64,
                 &spl_token_2022::ID,
             ),
-            // Init mint with transfer fee
             spl_token_2022::extension::transfer_fee::instruction::initialize_transfer_fee_config(
                 &spl_token_2022::ID,
                 &u.pubkey(),
@@ -348,7 +348,6 @@ async fn test_initialize() {
                 .unwrap(),
         );
         println!("Minting to fee rebate reserve");
-
         ixs.push(
             spl_token_2022::instruction::mint_to(
                 &spl_token_2022::ID,
@@ -360,7 +359,7 @@ async fn test_initialize() {
             )
             .unwrap(),
         );
-
+        // This is just for the tests - at launch this will not be necessary
         println!("Minting to signer");
         ixs.push(create_associated_token_account(
             &signer.pubkey(), // ata rent payer

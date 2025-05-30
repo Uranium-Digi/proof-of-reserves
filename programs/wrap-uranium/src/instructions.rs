@@ -12,22 +12,14 @@ use crate::{err::CustomError, structs::Config};
 // {authority}_{is_pda}_{token}_{is_ata}
 // eg: signer_u_ata, config_pda_u_ata
 //
-// special case: fee_rebate_reserve_u_data
+// special case: fee_rebate_reserve_u_ata
 
 #[derive(Accounts)]
 pub struct Initialize<'info> {
     #[account(mut)]
     pub signer: Signer<'info>,
 
-    #[account(
-        init,
-        payer = signer,
-        space = 8 + Config::INIT_SPACE,
-        seeds = [b"config_pda", u.key().as_ref()],
-        bump,
-    )]
-    pub config_pda: Box<Account<'info, Config>>,
-
+    
     /// CHECK: mint is not dangerous because we don't read or write from this account
     pub u: AccountInfo<'info>,
 
@@ -41,6 +33,15 @@ pub struct Initialize<'info> {
         mint::token_program = token_program
     )]
     pub wu: Box<InterfaceAccount<'info, Mint>>,
+
+    #[account(
+        init,
+        payer = signer,
+        space = 8 + Config::INIT_SPACE,
+        seeds = [b"config_pda", u.key().as_ref()],
+        bump,
+    )]
+    pub config_pda: Box<Account<'info, Config>>,
 
     #[account(
         init,
@@ -60,7 +61,6 @@ pub struct Initialize<'info> {
         seeds = [b"fee_rebate_reserve_u_ata", u.key().as_ref()],
         bump
     )]
-    // config_pda_u_ata
     pub fee_rebate_reserve_u_ata: Box<InterfaceAccount<'info, TokenAccount>>,
 
     pub token_program: Program<'info, Token2022>,

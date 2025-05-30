@@ -2,6 +2,7 @@ import path from 'path'
 import { Connection, PublicKey } from '@solana/web3.js'
 import * as dotenv from 'dotenv'
 import * as anchor from '@coral-xyz/anchor'
+import WalletManager from './WalletManager'
 
 // Load environment variables from .env file
 dotenv.config({ path: path.resolve(__dirname, '../../.env') })
@@ -30,4 +31,25 @@ export const anchorConnection = new anchor.web3.Connection(RPC_URL)
 export const DIRECTORIES = {
     FUNDING_WALLET_FILE: process.env.FUNDING_WALLET_FILE_FOR_DEPLOYER || '',
     TOKEN_AUTHORITY_FILE: process.env.TOKEN_AUTHORITY_PATH_FOR_DEPLOYER || '',
+}
+
+export const setUpAnchorProvider = async () => {
+    const tokenAuthority = await WalletManager.getTokenAuthority()
+    const wallet = new anchor.Wallet(tokenAuthority)
+
+    console.log('☕️ Setting provider and program...')
+
+    const provider = new anchor.AnchorProvider(anchorConnection, wallet, {})
+    anchor.setProvider(provider)
+    return provider
+}
+export const wrapUraniumProgram = async (wrapUraniumIDL: any): Promise<anchor.Program> => {
+    const provider = await setUpAnchorProvider()
+    const programWrapUranium = new anchor.Program(wrapUraniumIDL as any, provider)
+    return programWrapUranium
+}
+
+export const uraniumToken = async (uraniumTokenAddress: string) => {
+    const mint = new anchor.web3.PublicKey(uraniumTokenAddress)
+    return mint
 }

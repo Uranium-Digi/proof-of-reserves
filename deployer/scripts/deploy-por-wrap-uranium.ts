@@ -7,9 +7,15 @@ import { spitOutWallets } from '../src/convertKey'
 import WalletManager from '../src/WalletManager'
 import Common from '../src/Common'
 import { TokenFactory } from '../src/TokenFactory'
-import { connection, RPC_URL, NETWORK_USED } from '../src/config'
+import { connection, RPC_URL, NETWORK_USED, uraniumToken, uraniumToken, wrapUraniumProgram } from '../src/config'
 import * as anchor from '@coral-xyz/anchor'
-import { TOKEN_2022_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID, getAssociatedTokenAddress } from '@solana/spl-token'
+import {
+    TOKEN_2022_PROGRAM_ID,
+    ASSOCIATED_TOKEN_PROGRAM_ID,
+    getAssociatedTokenAddress,
+    getOrCreateAssociatedTokenAccount,
+    mintTo,
+} from '@solana/spl-token'
 import { ExtensionType, getMintLen } from '@solana/spl-token'
 import { readFile } from 'fs/promises'
 import { anchorConnection } from '../src/config'
@@ -104,108 +110,250 @@ async function deployWrappedToken(): Promise<{
     }
 }
 
-export async function initializeWrappedTokenWithPoR(wrapUraniumIDL: any, uraniumTokenAddress: string) {
-    console.log('\n🌟 🌟 🌟 initializing wrapped token with PoR and depositing mint authority! 🌟 🌟 🌟\n')
-    // Import the latest config values
-    const wrapUraniumProgramId = wrapUraniumIDL.address
+export async function initialize(
+    tokenAuthority: Keypair,
+    fundingWallet: Keypair,
+    wrapUraniumIDL: any,
+    uraniumTokenAddress: string,
+) {
+    console.log('\n🌟 🌟 🌟 initializing wrapped token with PoR! 🌟 🌟 🌟\n')
 
-    console.log('Initializing wrapped token...')
-    console.log('Program ID from idl:', wrapUraniumProgramId)
+    const programWrapUranium = await wrapUraniumProgram(wrapUraniumIDL)
+    const u = await uraniumToken(uraniumTokenAddress)
 
-    console.log('💰 Reading wallet...')
-
-    const tokenAuthority = await WalletManager.getTokenAuthority()
-    const wallet = new anchor.Wallet(tokenAuthority)
-
-    console.log('☕️ Setting provider and program...')
-
-    const provider = new anchor.AnchorProvider(anchorConnection, wallet, {})
-    anchor.setProvider(provider)
-
-    const programWrapUranium = new anchor.Program(wrapUraniumIDL as any, provider)
-
-    console.log('🎭 Program ID from idl:', programWrapUranium.programId.toBase58())
-    console.log('🎭 Token address:', uraniumTokenAddress)
-
-    const mint = new anchor.web3.PublicKey(uraniumTokenAddress)
-    console.log('🏦 mint:', mint.toBase58())
+    console.log('🎭 programWrapUranium program ID from idl:', programWrapUranium.programId.toBase58())
+    console.log('🏦 u :', u.toBase58())
 
     console.log('🪝 Preparing PDAs')
-    const [wrappedMintPDA] = anchor.web3.PublicKey.findProgramAddressSync(
-        [Buffer.from('wrapped_mint'), mint.toBuffer()],
+    const [wu] = anchor.web3.PublicKey.findProgramAddressSync(
+        [Buffer.from('wu'), u.toBuffer()],
         programWrapUranium.programId,
     )
 
-    const [configPDA] = anchor.web3.PublicKey.findProgramAddressSync(
-        [Buffer.from('config'), mint.toBuffer()],
+    const [configPda] = anchor.web3.PublicKey.findProgramAddressSync(
+        [Buffer.from('config_pda'), u.toBuffer()],
         programWrapUranium.programId,
     )
-
-    const [feeRebateReservePDA] = anchor.web3.PublicKey.findProgramAddressSync(
-        [Buffer.from('fee_rebate_reserve'), mint.toBuffer()],
+    const [configPdaUAta] = anchor.web3.PublicKey.findProgramAddressSync(
+        [Buffer.from('config_pda_u_ata'), u.toBuffer()],
         programWrapUranium.programId,
     )
-
-    console.log('wrappedMintPDA:', wrappedMintPDA.toBase58())
-    console.log('configPDA:', configPDA.toBase58())
-    console.log('feeRebateReservePDA:', feeRebateReservePDA.toBase58())
-
-    const uraniumATA = await getAssociatedTokenAddress(
-        mint,
-        configPDA,
-        true, // allowOwnerOffCurve
-        TOKEN_2022_PROGRAM_ID,
-        ASSOCIATED_TOKEN_PROGRAM_ID,
+    const [feeRebateReserveUAta] = anchor.web3.PublicKey.findProgramAddressSync(
+        [Buffer.from('fee_rebate_reserve_u_ata'), u.toBuffer()],
+        programWrapUranium.programId,
     )
-    console.log('uraniumATA:', uraniumATA.toBase58())
-
-    console.log('Initializing!')
-    console.log('wallet.publicKey:', wallet.publicKey)
-    console.log('mint:', mint)
-    console.log('wrappedMintPDA:', wrappedMintPDA)
-    console.log('configPDA:', configPDA)
 
     const initializeProgramIx = await programWrapUranium.methods
         .initialize()
         .accountsPartial({
-            signer: wallet.publicKey, // Wallet's public key (signer)
-            config: configPDA,
-            mint: mint,
-            wrappedMint: wrappedMintPDA,
-            mint_ata: uraniumATA,
-            fee_rebate_reserve: feeRebateReservePDA,
+            signer: tokenAuthority.publicKey,
+            u,
+            wu,
+            configPda,
+            configPdaUAta,
+            feeRebateReserveUAta,
             token_program: TOKEN_2022_PROGRAM_ID,
             associated_token_program: ASSOCIATED_TOKEN_PROGRAM_ID,
             system_program: SystemProgram.programId,
         })
         .instruction()
-    const depositMintAuthorityIx = await programWrapUranium.methods
-        .depositMintAuthority()
-        .accountsPartial({
-            signer: wallet.publicKey,
-            config: configPDA,
-            mint: mint,
-            token_program: TOKEN_2022_PROGRAM_ID,
-        })
-        .signers([wallet.payer])
-        .instruction()
 
-    console.log('initializeProgramIx:', initializeProgramIx)
-    console.log('depositMintAuthorityIx:', depositMintAuthorityIx)
-    console.log('config.authority:', configPDA.toBase58())
-    console.log('wallet.publicKey:', wallet.publicKey.toBase58())
-    const transaction = new anchor.web3.Transaction().add(initializeProgramIx).add(depositMintAuthorityIx)
+    const transaction = new anchor.web3.Transaction().add(initializeProgramIx)
 
     try {
-        const tx = await anchor.web3.sendAndConfirmTransaction(anchorConnection, transaction, [wallet.payer], {
-            commitment: 'confirmed',
-        })
+        const tx = await anchor.web3.sendAndConfirmTransaction(
+            anchorConnection,
+            transaction,
+            [fundingWallet, tokenAuthority], // fundingWallet first as fee payer, then tokenAuthority as program signer
+            {
+                commitment: 'confirmed',
+            },
+        )
         console.log('\n🎉 Transaction successful! 🎉\n Signature:', tx)
     } catch (e: any) {
         console.error('Transaction failed', e)
         console.log(e.getLogs())
     }
 }
+
+export async function mintToFeeRebateReserve(
+    tokenAuthority: Keypair,
+    fundingWallet: Keypair,
+    wrapUraniumIDL: any,
+    uraniumTokenAddress: string,
+    amount: number,
+) {
+    // const fundingWallet = await WalletManager.getFundingWallet()
+    // const wallet = new anchor.Wallet(tokenAuthority)
+    // const payer = new anchor.Wallet(fundingWallet)
+    const u = await uraniumToken(uraniumTokenAddress)
+    const programWrapUranium = await wrapUraniumProgram(wrapUraniumIDL)
+    const [feeRebateReserveUAta] = anchor.web3.PublicKey.findProgramAddressSync(
+        [Buffer.from('fee_rebate_reserve_u_ata'), u.toBuffer()],
+        programWrapUranium.programId,
+    )
+
+    const tx = await mintTo(
+        this.common.connection,
+        fundingWallet,
+        u,
+        feeRebateReserveUAta,
+        tokenAuthority,
+        amount,
+        [],
+        undefined,
+        TOKEN_2022_PROGRAM_ID,
+    )
+    console.log(`Minted ${amount.toString()} tokens to ${feeRebateReserveUAta.toString()} - the feeRebateReserveAta`)
+    console.log('Mint to feeRebateReserveUAta tx: ', tx)
+}
+
+export async function depositMintAuthority(
+    tokenAuthority: Keypair,
+    fundingWallet: Keypair,
+    wrapUraniumIDL: any,
+    uraniumTokenAddress: string,
+) {
+    console.log('\n🌟 🌟 🌟 depositing mint authority! 🌟 🌟 🌟\n')
+    const u = await uraniumToken(uraniumTokenAddress)
+    const programWrapUranium = await wrapUraniumProgram(wrapUraniumIDL)
+
+    const [configPDA] = anchor.web3.PublicKey.findProgramAddressSync(
+        [Buffer.from('config_pda'), u.toBuffer()],
+        programWrapUranium.programId,
+    )
+
+    const depositMintAuthorityIx = await programWrapUranium.methods
+        .depositMintAuthority()
+        .accountsPartial({
+            signer: tokenAuthority.publicKey,
+            config: configPDA,
+            mint: u,
+            token_program: TOKEN_2022_PROGRAM_ID,
+        })
+        .signers([tokenAuthority])
+        .instruction()
+
+    const transaction = new anchor.web3.Transaction().add(depositMintAuthorityIx)
+
+    try {
+        const tx = await anchor.web3.sendAndConfirmTransaction(
+            this.common.connection,
+            transaction,
+            [fundingWallet, tokenAuthority],
+            {
+                commitment: 'confirmed',
+            },
+        )
+        console.log('\n🎉 DepositMintAuthority Transaction successful! 🎉\n Signature:', tx)
+    } catch (e: any) {
+        console.error('DepositMintAuthority failed', e)
+        console.log(e.getLogs())
+    }
+}
+
+// export async function initializeWrappedTokenWithPoR(wrapUraniumIDL: any, uraniumTokenAddress: string) {
+//     console.log('\n🌟 🌟 🌟 initializing wrapped token with PoR and depositing mint authority! 🌟 🌟 🌟\n')
+//     // Import the latest config values
+//     const wrapUraniumProgramId = wrapUraniumIDL.address
+
+//     console.log('Initializing wrapped token...')
+//     console.log('Program ID from idl:', wrapUraniumProgramId)
+
+//     console.log('💰 Reading wallet...')
+
+//     const tokenAuthority = await WalletManager.getTokenAuthority()
+//     const wallet = new anchor.Wallet(tokenAuthority)
+
+//     console.log('☕️ Setting provider and program...')
+
+//     const provider = new anchor.AnchorProvider(anchorConnection, wallet, {})
+//     anchor.setProvider(provider)
+
+//     const programWrapUranium = new anchor.Program(wrapUraniumIDL as any, provider)
+
+//     console.log('🎭 Program ID from idl:', programWrapUranium.programId.toBase58())
+//     console.log('🎭 Token address:', uraniumTokenAddress)
+
+//     const mint = new anchor.web3.PublicKey(uraniumTokenAddress)
+//     console.log('🏦 mint:', mint.toBase58())
+
+//     console.log('🪝 Preparing PDAs')
+//     const [wrappedMintPDA] = anchor.web3.PublicKey.findProgramAddressSync(
+//         [Buffer.from('wrapped_mint'), mint.toBuffer()],
+//         programWrapUranium.programId,
+//     )
+
+//     const [configPDA] = anchor.web3.PublicKey.findProgramAddressSync(
+//         [Buffer.from('config'), mint.toBuffer()],
+//         programWrapUranium.programId,
+//     )
+
+//     const [feeRebateReservePDA] = anchor.web3.PublicKey.findProgramAddressSync(
+//         [Buffer.from('fee_rebate_reserve'), mint.toBuffer()],
+//         programWrapUranium.programId,
+//     )
+
+//     console.log('wrappedMintPDA:', wrappedMintPDA.toBase58())
+//     console.log('configPDA:', configPDA.toBase58())
+//     console.log('feeRebateReservePDA:', feeRebateReservePDA.toBase58())
+
+//     const uraniumATA = await getAssociatedTokenAddress(
+//         mint,
+//         configPDA,
+//         true, // allowOwnerOffCurve
+//         TOKEN_2022_PROGRAM_ID,
+//         ASSOCIATED_TOKEN_PROGRAM_ID,
+//     )
+//     console.log('uraniumATA:', uraniumATA.toBase58())
+
+//     console.log('Initializing!')
+//     console.log('wallet.publicKey:', wallet.publicKey)
+//     console.log('mint:', mint)
+//     console.log('wrappedMintPDA:', wrappedMintPDA)
+//     console.log('configPDA:', configPDA)
+
+//     const initializeProgramIx = await programWrapUranium.methods
+//         .initialize()
+//         .accountsPartial({
+//             signer: wallet.publicKey, // Wallet's public key (signer)
+//             config: configPDA,
+//             mint: mint,
+//             wrappedMint: wrappedMintPDA,
+//             mint_ata: uraniumATA,
+//             fee_rebate_reserve: feeRebateReservePDA,
+//             token_program: TOKEN_2022_PROGRAM_ID,
+//             associated_token_program: ASSOCIATED_TOKEN_PROGRAM_ID,
+//             system_program: SystemProgram.programId,
+//         })
+//         .instruction()
+//     const depositMintAuthorityIx = await programWrapUranium.methods
+//         .depositMintAuthority()
+//         .accountsPartial({
+//             signer: wallet.publicKey,
+//             config: configPDA,
+//             mint: mint,
+//             token_program: TOKEN_2022_PROGRAM_ID,
+//         })
+//         .signers([wallet.payer])
+//         .instruction()
+
+//     console.log('initializeProgramIx:', initializeProgramIx)
+//     console.log('depositMintAuthorityIx:', depositMintAuthorityIx)
+//     console.log('config.authority:', configPDA.toBase58())
+//     console.log('wallet.publicKey:', wallet.publicKey.toBase58())
+//     const transaction = new anchor.web3.Transaction().add(initializeProgramIx).add(depositMintAuthorityIx)
+
+//     try {
+//         const tx = await anchor.web3.sendAndConfirmTransaction(anchorConnection, transaction, [wallet.payer], {
+//             commitment: 'confirmed',
+//         })
+//         console.log('\n🎉 Transaction successful! 🎉\n Signature:', tx)
+//     } catch (e: any) {
+//         console.error('Transaction failed', e)
+//         console.log(e.getLogs())
+//     }
+// }
 
 async function main(
     uraniumTokenAddress?: string,
@@ -239,8 +387,6 @@ async function main(
     console.log(`RPC URL: ${endpoint}`)
     console.log('=============================\n')
 
-    // const tokenMint = await deployToken()
-
     // const { wrapUraniumIdl, wrapUraniumProgramId } = await deployWrappedToken()
     let tokenMint: PublicKey
     let wrapUraniumIdl: any
@@ -273,7 +419,13 @@ async function main(
         await new Promise((resolve) => setTimeout(resolve, 10000))
     }
 
-    await initializeWrappedTokenWithPoR(wrapUraniumIdl, tokenMint.toBase58())
+    const tokenAuthority = await WalletManager.getTokenAuthority()
+    const fundingWallet = await WalletManager.getFundingWallet()
+    await initialize(tokenAuthority, fundingWallet, wrapUraniumIdl, tokenMint.toBase58())
+
+    await mintToFeeRebateReserve(tokenAuthority, fundingWallet, wrapUraniumIdl, tokenMint.toBase58(), 1000000)
+
+    await depositMintAuthority(tokenAuthority, fundingWallet, wrapUraniumIdl, tokenMint.toBase58())
 }
 
 main()
