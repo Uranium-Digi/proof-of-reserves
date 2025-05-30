@@ -190,11 +190,8 @@ pub struct SetConfig<'info> {
 pub struct Wrap<'info> {
     #[account(
         mut,
-        constraint = signer.key() == config.wrap_authority @ CustomError::YouAreNotWrapAuthority
+        constraint = owner.key() == config.wrap_authority @ CustomError::YouAreNotWrapAuthority
     )]
-    pub signer: Signer<'info>,
-
-    #[account(signer)]
     pub owner: Signer<'info>,
 
     #[account(
@@ -230,7 +227,7 @@ pub struct Wrap<'info> {
 
     #[account(
         init_if_needed,
-        payer = signer,
+        payer = owner,
         associated_token::mint = wrapped_mint,
         associated_token::authority = destination,
         associated_token::token_program = token_program

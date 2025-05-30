@@ -217,7 +217,7 @@ pub mod wrap_uranium {
                 &[&[
                     b"issuance_wallet_pda",
                     ctx.accounts.mint.key().as_ref(),
-                    &[ctx.bumps.config],
+                    &[ctx.bumps.issuance_wallet_pda],
                 ]],
             ),
             issuance_fee,
@@ -234,12 +234,12 @@ pub mod wrap_uranium {
                         .issuance_wallet_pda_wrapped_ata
                         .to_account_info(),
                     to: ctx.accounts.master_wallet_wrapped_ata.to_account_info(),
-                    authority: ctx.accounts.config.to_account_info(),
+                    authority: ctx.accounts.issuance_wallet_pda.to_account_info(),
                 },
                 &[&[
                     b"issuance_wallet_pda",
                     ctx.accounts.mint.key().as_ref(),
-                    &[ctx.bumps.config],
+                    &[ctx.bumps.issuance_wallet_pda],
                 ]],
             ),
             receivable,
@@ -289,7 +289,7 @@ pub mod wrap_uranium {
                 &[&[
                     b"redemption_wallet_pda",
                     ctx.accounts.mint.key().as_ref(),
-                    &[ctx.bumps.config],
+                    &[ctx.bumps.redemption_wallet_pda],
                 ]],
             ),
             redemption_fee,
@@ -309,13 +309,13 @@ pub mod wrap_uranium {
                 ctx.accounts.token_program.to_account_info(),
                 Burn {
                     mint: ctx.accounts.wrapped_mint.to_account_info(),
-                    from: ctx.accounts.owner_wrapped_ata.to_account_info(),
+                    from: ctx.accounts.redemption_wallet_pda_wrapped_ata.to_account_info(),
                     authority: ctx.accounts.redemption_wallet_pda.to_account_info(),
                 },
                 &[&[
                     b"redemption_wallet_pda",
                     ctx.accounts.mint.key().as_ref(),
-                    &[ctx.bumps.config],
+                    &[ctx.bumps.redemption_wallet_pda],
                 ]],
             ),
             redeemable,

@@ -9,7 +9,7 @@ use anchor_client::{
 use anchor_spl::{
     associated_token::spl_associated_token_account::{
         self, get_associated_token_address_with_program_id,
-        instruction::create_associated_token_account,
+        instruction::{create_associated_token_account, create_associated_token_account_idempotent},
     },
     token_2022::spl_token_2022::{self, instruction::transfer_checked},
 };
@@ -202,8 +202,6 @@ async fn test_initialize() {
         .await
         .unwrap();
 
-    let owner = Keypair::new();
-    let dest = Keypair::new();
     let mint = Keypair::new();
 
     let master_wallet = Keypair::new();
@@ -232,11 +230,7 @@ async fn test_initialize() {
         .await
         .unwrap();
 
-    rpc.request_airdrop(&dest.pubkey(), 5 * LAMPORTS_PER_SOL)
-        .await
-        .unwrap();
-
-    rpc.request_airdrop(&owner.pubkey(), 5 * LAMPORTS_PER_SOL)
+    rpc.request_airdrop(&master_wallet.pubkey(), 5 * LAMPORTS_PER_SOL)
         .await
         .unwrap();
 
@@ -257,26 +251,14 @@ async fn test_initialize() {
         &spl_token_2022::ID,
     );
 
-    let dest_wrapped_ata = get_associated_token_address_with_program_id(
-        &dest.pubkey(),
-        &wrapped_mint,
-        &spl_token_2022::ID,
-    );
-
-    let destination_ata = get_associated_token_address_with_program_id(
-        &dest.pubkey(),
+    let signer_ata = get_associated_token_address_with_program_id(
+        &signer.pubkey(),
         &mint.pubkey(),
         &spl_token_2022::ID,
     );
 
-    let owner_ata = get_associated_token_address_with_program_id(
-        &owner.pubkey(),
-        &mint.pubkey(),
-        &spl_token_2022::ID,
-    );
-
-    let owner_wrapped_ata = get_associated_token_address_with_program_id(
-        &owner.pubkey(),
+    let signer_wrapped_ata = get_associated_token_address_with_program_id(
+        &signer.pubkey(),
         &wrapped_mint,
         &spl_token_2022::ID,
     );
@@ -284,6 +266,12 @@ async fn test_initialize() {
     let master_wallet_wrapped_ata = get_associated_token_address_with_program_id(
         &master_wallet.pubkey(),
         &wrapped_mint,
+        &spl_token_2022::ID,
+    );
+
+    let master_wallet_ata = get_associated_token_address_with_program_id(
+        &master_wallet.pubkey(),
+        &mint.pubkey(),
         &spl_token_2022::ID,
     );
 
@@ -377,6 +365,25 @@ async fn test_initialize() {
             .unwrap(),
         );
 
+        println!("Minting to signer");
+        ixs.push(create_associated_token_account(
+            &signer.pubkey(), // ata rent payer
+            &signer.pubkey(), // owner
+            &mint.pubkey(),
+            &spl_token_2022::ID,
+        ));
+        ixs.push(
+            spl_token_2022::instruction::mint_to(
+                &spl_token_2022::ID,
+                &mint.pubkey(),
+                &signer_ata,      // ata
+                &signer.pubkey(), // mint authority
+                &[],
+                100 * LAMPORTS_PER_SOL,
+            )
+            .unwrap(),
+        );
+
         println!("Depositing mint authority");
         ixs.append(
             &mut program
@@ -397,37 +404,20 @@ async fn test_initialize() {
 
     println!("Wrapping");
     {
-        let mut ixs = vec![
-            create_associated_token_account(
-                &signer.pubkey(),
-                &owner.pubkey(),
-                &mint.pubkey(),
-                &spl_token_2022::ID,
-            ),
-            spl_token_2022::instruction::mint_to(
-                &spl_token_2022::ID,
-                &mint.pubkey(),
-                &owner_ata,
-                &signer.pubkey(),
-                &[],
-                100 * LAMPORTS_PER_SOL,
-            )
-            .unwrap(),
-        ];
+        let mut ixs = vec![];
 
         ixs.append(
             &mut program
                 .request()
                 .accounts(wrap_uranium::accounts::Wrap {
-                    signer: signer.pubkey(),
-                    owner: owner.pubkey(),
-                    owner_ata,
+                    owner: signer.pubkey(),
+                    owner_ata: signer_ata,
                     mint: mint.pubkey(),
                     wrapped_mint,
                     config,
                     mint_ata,
-                    destination: dest.pubkey(),
-                    destination_wrapped_ata: dest_wrapped_ata,
+                    destination: master_wallet.pubkey(),
+                    destination_wrapped_ata: master_wallet_wrapped_ata,
                     token_program: spl_token_2022::ID,
                     associated_token_program: spl_associated_token_account::ID,
                     system_program: solana_program::system_program::ID,
@@ -439,43 +429,43 @@ async fn test_initialize() {
                 .unwrap(),
         );
 
-        send_tx(&rpc, ixs, &signer.pubkey(), &[&signer, &owner]).await;
+        send_tx(&rpc, ixs, &signer.pubkey(), &[&signer]).await;
 
-        let dest_wrapped_ata_balance = rpc
-            .get_token_account_balance(&dest_wrapped_ata)
+        let master_wallet_wrapped_ata_balance = rpc
+            .get_token_account_balance(&master_wallet_wrapped_ata)
             .await
             .unwrap()
             .amount
             .parse::<u64>()
             .unwrap();
-        let owner_ata_balance = rpc
-            .get_token_account_balance(&owner_ata)
+        let signer_ata_balance = rpc
+            .get_token_account_balance(&signer_ata)
             .await
             .unwrap()
             .amount
             .parse::<u64>()
             .unwrap();
 
-        assert_eq!(dest_wrapped_ata_balance, 100 * LAMPORTS_PER_SOL,);
-        assert_eq!(owner_ata_balance, 0,);
+        assert_eq!(master_wallet_wrapped_ata_balance, 100 * LAMPORTS_PER_SOL,);
+        assert_eq!(signer_ata_balance, 0,);
     }
 
     println!("Transfering wrapped token");
     {
-        // transfer the wrapped token from destination to owner
+        // transfer the wrapped token from master_wallet to signer
         let ixs = vec![
             create_associated_token_account(
-                &dest.pubkey(),
-                &owner.pubkey(),
-                &wrapped_mint,
+                &master_wallet.pubkey(), // funding
+                &signer.pubkey(), // owner
+                &wrapped_mint, // mint
                 &spl_token_2022::ID,
             ),
             transfer_checked(
                 &spl_token_2022::ID,
-                &dest_wrapped_ata,
+                &master_wallet_wrapped_ata,
                 &wrapped_mint,
-                &owner_wrapped_ata,
-                &dest.pubkey(),
+                &signer_wrapped_ata,
+                &master_wallet.pubkey(),
                 &[],
                 100 * LAMPORTS_PER_SOL,
                 9,
@@ -483,7 +473,7 @@ async fn test_initialize() {
             .unwrap(),
         ];
 
-        send_tx(&rpc, ixs, &dest.pubkey(), &[&dest]).await;
+        send_tx(&rpc, ixs, &master_wallet.pubkey(), &[&master_wallet]).await;
     }
 
     println!("Unwrapping");
@@ -495,13 +485,13 @@ async fn test_initialize() {
                 .request()
                 .accounts(wrap_uranium::accounts::Unwrap {
                     owner: signer.pubkey(),
-                    owner_wrapped_ata,
+                    owner_wrapped_ata: signer_wrapped_ata,
                     mint: mint.pubkey(),
                     wrapped_mint,
                     config,
                     mint_ata,
-                    destination: dest.pubkey(),
-                    destination_ata,
+                    destination: master_wallet.pubkey(),
+                    destination_ata: master_wallet_ata,
                     fee_rebate_reserve,
                     token_program: spl_token_2022::ID,
                     associated_token_program: spl_associated_token_account::ID,
@@ -514,25 +504,25 @@ async fn test_initialize() {
                 .unwrap(),
         );
 
-        send_tx(&rpc, ixs, &signer.pubkey(), &[&signer, &owner]).await;
+        send_tx(&rpc, ixs, &signer.pubkey(), &[&signer]).await;
 
-        let owner_wrapped_ata_balance = rpc
-            .get_token_account_balance(&owner_wrapped_ata)
+        let signer_wrapped_ata_balance = rpc
+            .get_token_account_balance(&signer_wrapped_ata)
             .await
             .unwrap()
             .amount
             .parse::<u64>()
             .unwrap();
-        let destination_ata_balance = rpc
-            .get_token_account_balance(&destination_ata)
+        let master_wallet_ata_balance = rpc
+            .get_token_account_balance(&master_wallet_ata)
             .await
             .unwrap()
             .amount
             .parse::<u64>()
             .unwrap();
 
-        assert_eq!(owner_wrapped_ata_balance, 0,);
-        assert_eq!(destination_ata_balance, 100 * LAMPORTS_PER_SOL,);
+        assert_eq!(signer_wrapped_ata_balance, 0,);
+        assert_eq!(master_wallet_ata_balance, 100 * LAMPORTS_PER_SOL,);
     }
 
     println!("MintingAndWrapping");
@@ -559,7 +549,7 @@ async fn test_initialize() {
         ));
 
         // create master_wallet_wrapped_ata
-        ixs.push(create_associated_token_account(
+        ixs.push(create_associated_token_account_idempotent(
             &signer.pubkey(),
             &master_wallet.pubkey(),
             &wrapped_mint,
@@ -595,8 +585,8 @@ async fn test_initialize() {
         );
 
         send_tx(&rpc, ixs, &signer.pubkey(), &[&signer]).await;
-        let dest_wrapped_ata_balance = rpc
-            .get_token_account_balance(&dest_wrapped_ata)
+        let master_wallet_wrapped_ata_balance = rpc
+            .get_token_account_balance(&master_wallet_wrapped_ata)
             .await
             .unwrap()
             .amount
@@ -609,26 +599,26 @@ async fn test_initialize() {
             .amount
             .parse::<u64>()
             .unwrap();
-        assert_eq!(dest_wrapped_ata_balance, 100 * LAMPORTS_PER_SOL,);
+        assert_eq!(master_wallet_wrapped_ata_balance, 100 * LAMPORTS_PER_SOL,);
         assert_eq!(wrapped_supply, 100 * LAMPORTS_PER_SOL,);
     }
 
     println!("Transfering wrapped token");
     {
-        // transfer the wrapped token from destination to signer
+        // transfer the wrapped token from master wallet to signer
         let ixs = vec![transfer_checked(
             &spl_token_2022::ID,
-            &dest_wrapped_ata,
+            &master_wallet_wrapped_ata,
             &wrapped_mint,
-            &owner_wrapped_ata,
-            &dest.pubkey(),
+            &signer_wrapped_ata,
+            &master_wallet.pubkey(),
             &[],
             100 * LAMPORTS_PER_SOL,
             9,
         )
         .unwrap()];
 
-        send_tx(&rpc, ixs, &dest.pubkey(), &[&dest]).await;
+        send_tx(&rpc, ixs, &master_wallet.pubkey(), &[&master_wallet]).await;
     }
 
     println!("UnwrapAndBurn");
@@ -646,8 +636,8 @@ async fn test_initialize() {
             &mut program
                 .request()
                 .accounts(wrap_uranium::accounts::UnwrapAndBurn {
-                    owner: owner.pubkey(),
-                    owner_wrapped_ata,
+                    owner: signer.pubkey(),
+                    owner_wrapped_ata: signer_wrapped_ata,
                     config,
                     mint: mint.pubkey(),
                     mint_ata,
@@ -668,9 +658,9 @@ async fn test_initialize() {
                 .unwrap(),
         );
 
-        send_tx(&rpc, ixs, &signer.pubkey(), &[&signer, &owner]).await;
-        let owner_wrapped_ata_balance = rpc
-            .get_token_account_balance(&owner_wrapped_ata)
+        send_tx(&rpc, ixs, &signer.pubkey(), &[&signer]).await;
+        let signer_wrapped_ata_balance = rpc
+            .get_token_account_balance(&signer_wrapped_ata)
             .await
             .unwrap()
             .amount
@@ -683,7 +673,7 @@ async fn test_initialize() {
             .amount
             .parse::<i64>()
             .unwrap();
-        assert_eq!(owner_wrapped_ata_balance, 0);
+        assert_eq!(signer_wrapped_ata_balance, 0);
         assert_eq!(wrapped_supply, 0);
     }
 }
