@@ -8,6 +8,12 @@ use anchor_spl::{
 
 use crate::{err::CustomError, structs::Config};
 
+// *********** Naming Convention ***********
+// {authority}_{is_pda}_{token}_{is_ata}
+// eg: signer_u_ata, config_pda_u_ata
+//
+// special case: fee_rebate_reserve_u_data
+
 #[derive(Accounts)]
 pub struct Initialize<'info> {
     #[account(mut)]
@@ -17,44 +23,45 @@ pub struct Initialize<'info> {
         init,
         payer = signer,
         space = 8 + Config::INIT_SPACE,
-        seeds = [b"config", mint.key().as_ref()],
+        seeds = [b"config_pda", u.key().as_ref()],
         bump,
     )]
-    pub config: Box<Account<'info, Config>>,
+    pub config_pda: Box<Account<'info, Config>>,
 
     /// CHECK: mint is not dangerous because we don't read or write from this account
-    pub mint: AccountInfo<'info>,
+    pub u: AccountInfo<'info>,
 
     #[account(
         init, 
-        seeds = [b"wrapped_mint", mint.key().as_ref()],
+        seeds = [b"wu", u.key().as_ref()],
         bump,
         payer = signer, 
         mint::decimals = 9, 
-        mint::authority = config,
+        mint::authority = config_pda,
         mint::token_program = token_program
     )]
-    pub wrapped_mint: Box<InterfaceAccount<'info, Mint>>,
+    pub wu: Box<InterfaceAccount<'info, Mint>>,
 
     #[account(
         init,
         payer = signer,
-        associated_token::mint = mint,
-        associated_token::authority = config,
+        associated_token::mint = u,
+        associated_token::authority = config_pda,
         associated_token::token_program = token_program
     )]
-    pub mint_ata: Box<InterfaceAccount<'info, TokenAccount>>,
+    pub config_pda_u_ata: Box<InterfaceAccount<'info, TokenAccount>>,
 
     #[account(
         init, 
         payer = signer, 
-        token::mint = mint,
-        token::authority = config,
+        token::mint = u,
+        token::authority = config_pda,
         token::token_program = token_program,
-        seeds = [b"fee_rebate_reserve", mint.key().as_ref()],
+        seeds = [b"fee_rebate_reserve_u_ata", u.key().as_ref()],
         bump
     )]
-    pub fee_rebate_reserve: Box<InterfaceAccount<'info, TokenAccount>>,
+    // config_pda_u_ata
+    pub fee_rebate_reserve_u_ata: Box<InterfaceAccount<'info, TokenAccount>>,
 
     pub token_program: Program<'info, Token2022>,
     pub associated_token_program: Program<'info, AssociatedToken>,
@@ -65,19 +72,19 @@ pub struct Initialize<'info> {
 pub struct DepositMintAuthority<'info> {
     #[account(
         mut,
-        constraint = signer.key() == config.authority @ CustomError::YouAreNotAdmin
+        constraint = signer.key() == config_pda.authority @ CustomError::YouAreNotAdmin
     )]
     pub signer: Signer<'info>,
 
     #[account(
         mut, 
-        seeds = [b"config", mint.key().as_ref()], 
+        seeds = [b"config_pda", u.key().as_ref()], 
         bump,
     )]
-    pub config: Account<'info, Config>,
+    pub config_pda: Account<'info, Config>,
 
     #[account(mut, mint::decimals = 9)]
-    pub mint: Box<InterfaceAccount<'info, Mint>>,
+    pub u: Box<InterfaceAccount<'info, Mint>>,
 
     pub token_program: Program<'info, Token2022>,
 }
@@ -86,19 +93,19 @@ pub struct DepositMintAuthority<'info> {
 pub struct WithdrawMintAuthority<'info> {
     #[account(
         mut,
-        constraint = signer.key() == config.authority @ CustomError::YouAreNotAdmin
+        constraint = signer.key() == config_pda.authority @ CustomError::YouAreNotAdmin
     )]
     pub signer: Signer<'info>,
 
     #[account(
         mut, 
-        seeds = [b"config", mint.key().as_ref()], 
+        seeds = [b"config_pda", u.key().as_ref()], 
         bump,
     )]
-    pub config: Account<'info, Config>,
+    pub config_pda: Account<'info, Config>,
 
     #[account(mut, mint::decimals = 9)]
-    pub mint: Box<InterfaceAccount<'info, Mint>>,
+    pub u: Box<InterfaceAccount<'info, Mint>>,
 
     pub token_program: Program<'info, Token2022>,
 }
@@ -107,26 +114,26 @@ pub struct WithdrawMintAuthority<'info> {
 pub struct DepositWrappedMintAuthority<'info> {
     #[account(
         mut,
-        constraint = signer.key() == config.authority @ CustomError::YouAreNotAdmin
+        constraint = signer.key() == config_pda.authority @ CustomError::YouAreNotAdmin
     )]
     pub signer: Signer<'info>,
 
     #[account(
         mut, 
-        seeds = [b"config", mint.key().as_ref()], 
+        seeds = [b"config_pda", u.key().as_ref()], 
         bump,
     )]
-    pub config: Account<'info, Config>,
+    pub config_pda: Account<'info, Config>,
 
     #[account(mut, mint::decimals = 9)]
-    pub mint: Box<InterfaceAccount<'info, Mint>>,
+    pub u: Box<InterfaceAccount<'info, Mint>>,
 
     #[account(
-        seeds = [b"wrapped_mint", mint.key().as_ref()],
+        seeds = [b"wu", u.key().as_ref()],
         bump,
         mint::token_program = token_program
     )]
-    pub wrapped_mint: Box<InterfaceAccount<'info, Mint>>,
+    pub wu: Box<InterfaceAccount<'info, Mint>>,
 
     pub token_program: Program<'info, Token2022>,
 }
@@ -135,26 +142,26 @@ pub struct DepositWrappedMintAuthority<'info> {
 pub struct WithdrawWrappedMintAuthority<'info> {
     #[account(
         mut,
-        constraint = signer.key() == config.authority @ CustomError::YouAreNotAdmin
+        constraint = signer.key() == config_pda.authority @ CustomError::YouAreNotAdmin
     )]
     pub signer: Signer<'info>,
 
     #[account(
         mut, 
-        seeds = [b"config", mint.key().as_ref()], 
+        seeds = [b"config_pda", u.key().as_ref()], 
         bump,
     )]
-    pub config: Account<'info, Config>,
+    pub config_pda: Account<'info, Config>,
 
     #[account(mint::decimals = 9)]
-    pub mint: Box<InterfaceAccount<'info, Mint>>,
+    pub u: Box<InterfaceAccount<'info, Mint>>,
 
     #[account(
-        seeds = [b"wrapped_mint", mint.key().as_ref()],
+        seeds = [b"wu", u.key().as_ref()],
         bump,
         mint::token_program = token_program
     )]
-    pub wrapped_mint: Box<InterfaceAccount<'info, Mint>>,
+    pub wu: Box<InterfaceAccount<'info, Mint>>,
 
     pub token_program: Program<'info, Token2022>,
 }
@@ -163,19 +170,19 @@ pub struct WithdrawWrappedMintAuthority<'info> {
 pub struct SetConfig<'info> {
     #[account(
         mut,
-        constraint = signer.key() == config.authority @ CustomError::YouAreNotAdmin
+        constraint = signer.key() == config_pda.authority @ CustomError::YouAreNotAdmin
     )]
     pub signer: Signer<'info>,
 
     #[account(
         mut, 
-        seeds = [b"config", mint.key().as_ref()], 
+        seeds = [b"config_pda", u.key().as_ref()], 
         bump,
     )]
-    pub config: Account<'info, Config>,
+    pub config_pda: Account<'info, Config>,
 
     #[account(mut, mint::decimals = 9)]
-    pub mint: Box<InterfaceAccount<'info, Mint>>,
+    pub u: Box<InterfaceAccount<'info, Mint>>,
 
     /// CHECK: This is not dangerous because we don't read or write from this account
     pub new_authority: AccountInfo<'info>,
@@ -190,36 +197,36 @@ pub struct SetConfig<'info> {
 pub struct Wrap<'info> {
     #[account(
         mut,
-        constraint = owner.key() == config.wrap_authority @ CustomError::YouAreNotWrapAuthority
+        constraint = signer.key() == config_pda.wrap_authority @ CustomError::YouAreNotWrapAuthority
     )]
-    pub owner: Signer<'info>,
+    pub signer: Signer<'info>,
 
     #[account(
-        seeds = [b"config", mint.key().as_ref()],
+        seeds = [b"config_pda", u.key().as_ref()],
         bump,
     )]
-    pub config: Box<Account<'info, Config>>,
+    pub config_pda: Box<Account<'info, Config>>,
 
     #[account(mint::decimals = 9)]
-    pub mint: InterfaceAccount<'info, Mint>,
+    pub u: InterfaceAccount<'info, Mint>,
 
     #[account(
         mut,
-        seeds = [b"wrapped_mint", mint.key().as_ref()],
+        seeds = [b"wu", u.key().as_ref()],
         bump,
         mint::decimals = 9, 
-        mint::authority = config,
+        mint::authority = config_pda,
         mint::token_program = token_program
     )]
-    pub wrapped_mint: InterfaceAccount<'info, Mint>,
+    pub wu: InterfaceAccount<'info, Mint>,
 
     #[account(
         mut,
-        associated_token::mint = mint,
-        associated_token::authority = owner,
+        associated_token::mint = u,
+        associated_token::authority = signer,
         associated_token::token_program = token_program
     )]
-    pub owner_ata: InterfaceAccount<'info, TokenAccount>,
+    pub signer_ata: InterfaceAccount<'info, TokenAccount>,
 
     /// CHECK: destination is not dangerous because we don't read or write from this account
     #[account()]
@@ -227,20 +234,20 @@ pub struct Wrap<'info> {
 
     #[account(
         init_if_needed,
-        payer = owner,
-        associated_token::mint = wrapped_mint,
+        payer = signer,
+        associated_token::mint = wu,
         associated_token::authority = destination,
         associated_token::token_program = token_program
     )]
-    pub destination_wrapped_ata: InterfaceAccount<'info, TokenAccount>,
+    pub destination_wu_ata: InterfaceAccount<'info, TokenAccount>,
 
     #[account(
         mut, 
-        associated_token::mint = mint,
-        associated_token::authority = config,
+        associated_token::mint = u,
+        associated_token::authority = config_pda,
         associated_token::token_program = token_program
     )]
-    pub mint_ata: InterfaceAccount<'info, TokenAccount>,
+    pub config_pda_u_ata: InterfaceAccount<'info, TokenAccount>,
 
     pub token_program: Program<'info, Token2022>,
     pub associated_token_program: Program<'info, AssociatedToken>,
@@ -251,28 +258,28 @@ pub struct Wrap<'info> {
 pub struct Unwrap<'info> {
     #[account(
         mut,
-        constraint = owner.key() == config.unwrap_authority @ CustomError::YouAreNotUnwrapAuthority
+        constraint = signer.key() == config_pda.unwrap_authority @ CustomError::YouAreNotUnwrapAuthority
     )]
-    pub owner: Signer<'info>,
+    pub signer: Signer<'info>,
 
     #[account(
-        seeds = [b"config", mint.key().as_ref()],
+        seeds = [b"config_pda", u.key().as_ref()],
         bump,
     )]
-    pub config: Box<Account<'info, Config>>,
+    pub config_pda: Box<Account<'info, Config>>,
 
     #[account(mint::decimals = 9)]
-    pub mint: InterfaceAccount<'info, Mint>,
+    pub u: InterfaceAccount<'info, Mint>,
 
     #[account(
         mut,
-        seeds = [b"wrapped_mint", mint.key().as_ref()],
+        seeds = [b"wu", u.key().as_ref()],
         bump,
         mint::decimals = 9, 
-        mint::authority = config,
+        mint::authority = config_pda,
         mint::token_program = token_program
     )]
-    pub wrapped_mint: InterfaceAccount<'info, Mint>,
+    pub wu: InterfaceAccount<'info, Mint>,
 
     /// CHECK: destination is not dangerous because we don't read or write from this account
     #[account()]
@@ -280,8 +287,8 @@ pub struct Unwrap<'info> {
 
     #[account(
         init_if_needed,
-        payer = owner,
-        associated_token::mint = mint,
+        payer = signer,
+        associated_token::mint = u,
         associated_token::authority = destination,
         associated_token::token_program = token_program
     )]
@@ -289,29 +296,29 @@ pub struct Unwrap<'info> {
 
     #[account(
         mut, 
-        associated_token::mint = mint,
-        associated_token::authority = config,
+        associated_token::mint = u,
+        associated_token::authority = config_pda,
         associated_token::token_program = token_program
     )]
-    pub mint_ata: InterfaceAccount<'info, TokenAccount>,
+    pub config_pda_u_ata: InterfaceAccount<'info, TokenAccount>,
 
     #[account(
         mut,
-        associated_token::mint = wrapped_mint,
-        associated_token::authority = owner,
+        associated_token::mint = wu,
+        associated_token::authority = signer,
         associated_token::token_program = token_program
     )]
-    pub owner_wrapped_ata: InterfaceAccount<'info, TokenAccount>,
+    pub signer_wu_ata: InterfaceAccount<'info, TokenAccount>,
 
     #[account(
         mut, 
-        token::mint = mint,
-        token::authority = config,
+        token::mint = u,
+        token::authority = config_pda,
         token::token_program = token_program,
-        seeds = [b"fee_rebate_reserve", mint.key().as_ref()],
+        seeds = [b"fee_rebate_reserve_u_ata", u.key().as_ref()],
         bump
     )]
-    pub fee_rebate_reserve: Box<InterfaceAccount<'info, TokenAccount>>,
+    pub fee_rebate_reserve_u_ata: Box<InterfaceAccount<'info, TokenAccount>>,
 
     pub token_program: Program<'info, Token2022>,
     pub associated_token_program: Program<'info, AssociatedToken>,
@@ -323,57 +330,57 @@ pub struct Unwrap<'info> {
 pub struct MintAndWrap<'info> {
     #[account(
         mut,
-        constraint = signer.key() == config.wrap_authority @ CustomError::YouAreNotUnwrapAuthority
+        constraint = signer.key() == config_pda.wrap_authority @ CustomError::YouAreNotUnwrapAuthority
     )]
     pub signer: Signer<'info>,
 
     #[account(
-        seeds = [b"config", mint.key().as_ref()],
+        seeds = [b"config_pda", u.key().as_ref()],
         bump,
     )]
-    pub config: Box<Account<'info, Config>>,
+    pub config_pda: Box<Account<'info, Config>>,
 
     #[account(
         mut,
         mint::decimals = 9,
-        mint::authority = config,
+        mint::authority = config_pda,
         mint::token_program = token_program
     )]
-    pub mint: InterfaceAccount<'info, Mint>,
+    pub u: InterfaceAccount<'info, Mint>,
 
     #[account(
         mut, 
-        associated_token::mint = mint,
-        associated_token::authority = config,
+        associated_token::mint = u,
+        associated_token::authority = config_pda,
         associated_token::token_program = token_program
     )]
-    pub mint_ata: InterfaceAccount<'info, TokenAccount>,
+    pub config_pda_u_ata: InterfaceAccount<'info, TokenAccount>,
 
 
     #[account(
         mut,
-        seeds = [b"wrapped_mint", mint.key().as_ref()],
+        seeds = [b"wu", u.key().as_ref()],
         bump,
         mint::decimals = 9, 
-        mint::authority = config,
+        mint::authority = config_pda,
         mint::token_program = token_program
     )]
-    pub wrapped_mint: InterfaceAccount<'info, Mint>,
+    pub wu: InterfaceAccount<'info, Mint>,
 
     /// CHECK: issuance_wallet_pda is not dangerous because we don't read or write from this account
     #[account(
-        seeds = [b"issuance_wallet_pda", mint.key().as_ref()],
+        seeds = [b"issuance_wallet_pda", u.key().as_ref()],
         bump,
     )]
     pub issuance_wallet_pda: AccountInfo<'info>,
 
     #[account(
         mut,
-        associated_token::mint = wrapped_mint,
+        associated_token::mint = wu,
         associated_token::authority = issuance_wallet_pda,
         associated_token::token_program = token_program
     )]
-    pub issuance_wallet_pda_wrapped_ata: InterfaceAccount<'info, TokenAccount>,
+    pub issuance_wallet_pda_wu_ata: InterfaceAccount<'info, TokenAccount>,
     
 
     /// CHECK: master_wallet is not dangerous because we don't read or write from this account
@@ -382,11 +389,11 @@ pub struct MintAndWrap<'info> {
 
     #[account(
         mut,
-        associated_token::mint = wrapped_mint,
+        associated_token::mint = wu,
         associated_token::authority = master_wallet,
         associated_token::token_program = token_program
     )]
-    pub master_wallet_wrapped_ata: InterfaceAccount<'info, TokenAccount>,
+    pub master_wallet_wu_ata: InterfaceAccount<'info, TokenAccount>,
 
 
     /// CHECK: company_wallet is not dangerous because we don't read or write from this account
@@ -395,11 +402,11 @@ pub struct MintAndWrap<'info> {
 
     #[account(
         mut,
-        associated_token::mint = wrapped_mint,
+        associated_token::mint = wu,
         associated_token::authority = company_wallet,
         associated_token::token_program = token_program
     )]
-    pub company_wallet_wrapped_ata: InterfaceAccount<'info, TokenAccount>,
+    pub company_wallet_wu_ata: InterfaceAccount<'info, TokenAccount>,
 
     pub token_program: Program<'info, Token2022>,
     pub associated_token_program: Program<'info, AssociatedToken>,
@@ -409,72 +416,72 @@ pub struct MintAndWrap<'info> {
     pub oracle_updater_program: AccountInfo<'info>,
 
     #[account(mut, seeds = [b"reserves"], bump, seeds::program = oracle_updater::ID)]
-    pub reserves_account: Account<'info, oracle_updater::Reserves>,
+    pub reserves_pda: Account<'info, oracle_updater::Reserves>,
 }
 
 #[derive(Accounts)]
 pub struct UnwrapAndBurn<'info> {
     #[account(
         mut,
-        constraint = owner.key() == config.unwrap_authority @ CustomError::YouAreNotUnwrapAuthority
+        constraint = signer.key() == config_pda.unwrap_authority @ CustomError::YouAreNotUnwrapAuthority
     )]
-    pub owner: Signer<'info>,
+    pub signer: Signer<'info>,
 
     #[account(
         mut,
-        associated_token::mint = wrapped_mint,
-        associated_token::authority = owner,
+        associated_token::mint = wu,
+        associated_token::authority = signer,
         associated_token::token_program = token_program
     )]
-    pub owner_wrapped_ata: InterfaceAccount<'info, TokenAccount>,
+    pub signer_wu_ata: InterfaceAccount<'info, TokenAccount>,
     
 
     #[account(
-        seeds = [b"config", mint.key().as_ref()],
+        seeds = [b"config_pda", u.key().as_ref()],
         bump,
     )]
-    pub config: Box<Account<'info, Config>>,
+    pub config_pda: Box<Account<'info, Config>>,
 
     #[account(
         mut,
         mint::decimals = 9,
         mint::token_program = token_program
     )]
-    pub mint: InterfaceAccount<'info, Mint>,
+    pub u: InterfaceAccount<'info, Mint>,
 
     #[account(
         mut, 
-        associated_token::mint = mint,
-        associated_token::authority = config,
+        associated_token::mint = u,
+        associated_token::authority = config_pda,
         associated_token::token_program = token_program
     )]
-    pub mint_ata: InterfaceAccount<'info, TokenAccount>,
+    pub config_pda_u_ata: InterfaceAccount<'info, TokenAccount>,
 
 
     #[account(
         mut,
-        seeds = [b"wrapped_mint", mint.key().as_ref()],
+        seeds = [b"wu", u.key().as_ref()],
         bump,
         mint::decimals = 9, 
-        mint::authority = config,
+        mint::authority = config_pda,
         mint::token_program = token_program
     )]
-    pub wrapped_mint: InterfaceAccount<'info, Mint>,
+    pub wu: InterfaceAccount<'info, Mint>,
 
     /// CHECK: redemption_wallet_pda is not dangerous because we don't read or write from this account
     #[account(
-        seeds = [b"redemption_wallet_pda", mint.key().as_ref()],
+        seeds = [b"redemption_wallet_pda", u.key().as_ref()],
         bump,
     )]
     pub redemption_wallet_pda: AccountInfo<'info>,
 
     #[account(
         mut,
-        associated_token::mint = wrapped_mint,
+        associated_token::mint = wu,
         associated_token::authority = redemption_wallet_pda,
         associated_token::token_program = token_program
     )]
-    pub redemption_wallet_pda_wrapped_ata: InterfaceAccount<'info, TokenAccount>,
+    pub redemption_wallet_pda_wu_ata: InterfaceAccount<'info, TokenAccount>,
     
     /// CHECK: company_wallet is not dangerous because we don't read or write from this account
     #[account()]
@@ -482,21 +489,21 @@ pub struct UnwrapAndBurn<'info> {
     
     #[account(
         mut,
-        associated_token::mint = wrapped_mint,
+        associated_token::mint = wu,
         associated_token::authority = company_wallet,
         associated_token::token_program = token_program,
     )]
-    pub company_wallet_wrapped_ata: InterfaceAccount<'info, TokenAccount>,
+    pub company_wallet_wu_ata: InterfaceAccount<'info, TokenAccount>,
 
     #[account(
         mut, 
-        token::mint = mint,
-        token::authority = config,
+        token::mint = u,
+        token::authority = config_pda,
         token::token_program = token_program,
-        seeds = [b"fee_rebate_reserve", mint.key().as_ref()],
+        seeds = [b"fee_rebate_reserve_u_ata", u.key().as_ref()],
         bump
     )]
-    pub fee_rebate_reserve: Box<InterfaceAccount<'info, TokenAccount>>,
+    pub fee_rebate_reserve_u_ata: Box<InterfaceAccount<'info, TokenAccount>>,
 
     pub token_program: Program<'info, Token2022>,
     pub associated_token_program: Program<'info, AssociatedToken>,
@@ -508,54 +515,54 @@ pub struct UnwrapAndBurn<'info> {
 pub struct TopUpRebateReserves<'info> {
     #[account(
         mut,
-        constraint = owner.key() == config.unwrap_authority @ CustomError::YouAreNotUnwrapAuthority
+        constraint = signer.key() == config_pda.unwrap_authority @ CustomError::YouAreNotUnwrapAuthority
     )]
-    pub owner: Signer<'info>,
+    pub signer: Signer<'info>,
 
     #[account(
-        seeds = [b"config", mint.key().as_ref()],
+        seeds = [b"config_pda", u.key().as_ref()],
         bump,
     )]
-    pub config: Box<Account<'info, Config>>,
+    pub config_pda: Box<Account<'info, Config>>,
 
     #[account(mint::decimals = 9)]
-    pub mint: InterfaceAccount<'info, Mint>,
+    pub u: InterfaceAccount<'info, Mint>,
 
     #[account(
         mut,
-        seeds = [b"wrapped_mint", mint.key().as_ref()],
+        seeds = [b"wu", u.key().as_ref()],
         bump,
         mint::decimals = 9, 
-        mint::authority = config,
+        mint::authority = config_pda,
         mint::token_program = token_program
     )]
-    pub wrapped_mint: InterfaceAccount<'info, Mint>,
+    pub wu: InterfaceAccount<'info, Mint>,
 
     #[account(
         mut, 
-        associated_token::mint = mint,
-        associated_token::authority = config,
+        associated_token::mint = u,
+        associated_token::authority = config_pda,
         associated_token::token_program = token_program
     )]
-    pub mint_ata: InterfaceAccount<'info, TokenAccount>,
+    pub config_pda_u_ata: InterfaceAccount<'info, TokenAccount>,
 
     #[account(
         mut,
-        associated_token::mint = wrapped_mint,
-        associated_token::authority = owner,
+        associated_token::mint = wu,
+        associated_token::authority = signer,
         associated_token::token_program = token_program
     )]
-    pub owner_wrapped_ata: InterfaceAccount<'info, TokenAccount>,
+    pub signer_wu_ata: InterfaceAccount<'info, TokenAccount>,
 
     #[account(
         mut, 
-        token::mint = mint,
-        token::authority = config,
+        token::mint = u,
+        token::authority = config_pda,
         token::token_program = token_program,
-        seeds = [b"fee_rebate_reserve", mint.key().as_ref()],
+        seeds = [b"fee_rebate_reserve_u_ata", u.key().as_ref()],
         bump
     )]
-    pub fee_rebate_reserve: Box<InterfaceAccount<'info, TokenAccount>>,
+    pub fee_rebate_reserve_u_ata: Box<InterfaceAccount<'info, TokenAccount>>,
 
     pub token_program: Program<'info, Token2022>,
     pub associated_token_program: Program<'info, AssociatedToken>,
