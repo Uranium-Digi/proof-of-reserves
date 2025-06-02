@@ -22,3 +22,11 @@ A Solana token deployment tool for creating and managing SPL tokens.
 This repo deploys the a fee-collecting token, intialling setting the fee to be 0, and then calls the dpeloyment of the wrap-uranium contract, supplies the wrap-uranium contract with the token address of the deployed token, and then calls "intiialize".
 
  <!-- and then migrates the tookenAuthority to an ultimate tokenAuthority.  -->
+
+If there's a dislocation of contracts in deployment- do this to deploy with entirely new programIds
+
+1. delete the target.
+2. anchor build - which will spit out new targets.
+3. `anchor keys sync`
+4. build again `anchor build`
+5. `npm run deploy`
