@@ -37,6 +37,9 @@ async function writeUraniumTokenAddressToConfig(uraniumTokenAddress: string) {
     fs.writeFileSync(configPath, configContent)
 }
 
+async function anchorKeysSync() {
+    execSync('anchor keys sync', { stdio: 'inherit' })
+}
 async function deployToken(): Promise<PublicKey> {
     console.log('\n🌟 🌟 🌟 deploying token! 🌟 🌟 🌟\n')
     // this converts the private keys to jsons in the ./.secrets folder
@@ -68,8 +71,10 @@ async function deployOracleUpdater(): Promise<{
     oracleUpdaterProgramId: string
 }> {
     console.log('\n🌟 🌟 🌟 deploying oracle updater program! 🌟 🌟 🌟\n')
+
+    execSync('anchor keys list', { stdio: 'inherit' })
     // We will not update the program ID
-    console.log('Building program: 👩‍🦼 oracle-updater...')
+    console.log('Building program: 👩👩‍🦼 oracle-updater...')
     execSync('anchor build -p oracle-updater', { stdio: 'inherit' })
 
     // read the program ID from the build output
@@ -114,14 +119,20 @@ export async function initialize(
     fundingWallet: Keypair,
     wrapUraniumIDL: any,
     uraniumTokenAddress: string,
-) {
+): Promise<{
+    u: string
+    wu: string
+    configPda: string
+    configPdaUAta: string
+    feeRebateReserveUAta: string
+    wrapUraniumProgramId: string
+}> {
     console.log('\n🌟 🌟 🌟 initializing wrapped token with PoR! 🌟 🌟 🌟\n')
 
     const programWrapUranium = await wrapUraniumProgram(wrapUraniumIDL)
     const u = await uraniumToken(uraniumTokenAddress)
 
     console.log('🎭 programWrapUranium program ID from idl:', programWrapUranium.programId.toBase58())
-    console.log('🏦 u :', u.toBase58())
 
     console.log('🪝 Preparing PDAs')
     const [wu] = anchor.web3.PublicKey.findProgramAddressSync(
@@ -133,10 +144,6 @@ export async function initialize(
         [Buffer.from('config_pda'), u.toBuffer()],
         programWrapUranium.programId,
     )
-    // const [configPdaUAta] = anchor.web3.PublicKey.findProgramAddressSync(
-    //     [Buffer.from('config_pda_u_ata'), u.toBuffer()],
-    //     programWrapUranium.programId,
-    // )
 
     const configPdaUAta = await getAssociatedTokenAddress(
         u,
@@ -150,6 +157,12 @@ export async function initialize(
         [Buffer.from('fee_rebate_reserve_u_ata'), u.toBuffer()],
         programWrapUranium.programId,
     )
+
+    console.log('🏦 u :', u.toBase58())
+    console.log('🎁 wu:', wu.toBase58())
+    console.log('🏗️ configPda:', configPda.toBase58())
+    console.log('🏦🏗️ configPdaUAta:', configPdaUAta.toBase58())
+    console.log('🏦🤑 feeRebateReserveUAta:', feeRebateReserveUAta.toBase58())
 
     const initializeProgramIx = await programWrapUranium.methods
         .initialize()
@@ -179,12 +192,22 @@ export async function initialize(
         )
         await new Promise((resolve) => setTimeout(resolve, 10000))
         console.log('\n🎉 Transaction successful! 🎉\n Signature:', tx)
+        return {
+            u: u.toBase58(),
+            wu: wu.toBase58(),
+            configPda: configPda.toBase58(),
+            configPdaUAta: configPdaUAta.toBase58(),
+            feeRebateReserveUAta: feeRebateReserveUAta.toBase58(),
+            wrapUraniumProgramId: programWrapUranium.programId.toBase58(),
+        }
     } catch (e: any) {
         console.error('Transaction failed', e)
         console.log(e.getLogs())
+        throw e // Re-throw the error since we can't return valid addresses
     }
 }
 
+// This is to prep for withdrawals
 export async function mintToFeeRebateReserve(
     tokenAuthority: Keypair,
     fundingWallet: Keypair,
@@ -299,15 +322,14 @@ async function main(
     console.log(`RPC URL: ${endpoint}`)
     console.log('=============================\n')
 
-    // const { wrapUraniumIdl, wrapUraniumProgramId } = await deployWrappedToken()
-    let tokenMint: PublicKey
+    let u: PublicKey
     let wrapUraniumIdl: any
     let oracleUpdaterIdl: any
 
     if (!uraniumTokenAddress) {
-        tokenMint = await deployToken()
+        u = await deployToken()
     } else {
-        tokenMint = new PublicKey(uraniumTokenAddress)
+        u = new PublicKey(uraniumTokenAddress)
         await writeUraniumTokenAddressToConfig(uraniumTokenAddress)
     }
 
@@ -331,11 +353,49 @@ async function main(
     const tokenAuthority = await WalletManager.getTokenAuthority()
     const fundingWallet = await WalletManager.getFundingWallet()
 
-    await initialize(tokenAuthority, fundingWallet, wrapUraniumIdl, tokenMint.toBase58())
+    const {
+        u: uAddress,
+        wu: wuAddress,
+        configPda: configPdaAddress,
+        configPdaUAta: configPdaUAtaAddress,
+        feeRebateReserveUAta: feeRebateReserveUAtaAddress,
+        wrapUraniumProgramId: wrapUraniumProgramId,
+    } = await initialize(tokenAuthority, fundingWallet, wrapUraniumIdl, u.toBase58())
 
-    await mintToFeeRebateReserve(tokenAuthority, fundingWallet, wrapUraniumIdl, tokenMint.toBase58(), 1000000)
+    await mintToFeeRebateReserve(tokenAuthority, fundingWallet, wrapUraniumIdl, u.toBase58(), 1000000)
 
-    await depositMintAuthority(tokenAuthority, fundingWallet, wrapUraniumIdl, tokenMint.toBase58())
+    await depositMintAuthority(tokenAuthority, fundingWallet, wrapUraniumIdl, u.toBase58())
+
+    // Save addresses to file
+    await saveAddressesToFile({
+        u: uAddress,
+        wu: wuAddress,
+        configPda: configPdaAddress,
+        configPdaUAta: configPdaUAtaAddress,
+        feeRebateReserveUAta: feeRebateReserveUAtaAddress,
+        wrapUraniumProgramId: wrapUraniumProgramId,
+        oracleUpdaterProgramId: oracleUpdaterIdl.address,
+    })
+}
+
+async function saveAddressesToFile(addresses: {
+    u: string
+    wu: string
+    configPda: string
+    configPdaUAta: string
+    feeRebateReserveUAta: string
+    wrapUraniumProgramId: string
+    oracleUpdaterProgramId: string
+}) {
+    const addressesPath = path.resolve(TOKEN_DEPLOYER_DIR, 'deployed-addresses.json')
+    const timestamp = new Date().toISOString()
+    const data = {
+        timestamp,
+        network: NETWORK_USED,
+        addresses,
+    }
+    fs.writeFileSync(addressesPath, JSON.stringify(data, null, 2))
+    console.log('\n📝 Addresses saved to:', addressesPath)
 }
 
 main()

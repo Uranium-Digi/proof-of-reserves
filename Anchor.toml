@@ -6,21 +6,24 @@ resolution = true
 skip-lint = false
 
 [programs.localnet]
-oracle_updater = "DKuMPrGWQqGfCu9TbT6hLB6JCoLSryCaHLhLdYieY1KT"
-wrap_uranium = "6L33NZbnBxjerCLA4g5rVpHUc1LM4D6gQRrsxYi9zqj8"
+oracle_updater = "4K9pG2QgchHtmxCVwMQB55Nfa17i9SqJYi98gwCmiUHA"
+wrap_uranium = "Bu3a53iRbrqi5mTsUWGVgWBYvPKPu87JWqafnaUxHVjW"
 
 [registry]
 url = "https://api.apr.dev"
 
 [provider]
 cluster = "localnet"
-wallet = "/Users/hongjan/Documents/proof-of-reserves/.secrets/tokenAuthority.json"
-#wallet = "/home/ricky/projects/ud/proof-of-reserves/.secrets/tokenAuthority.json"
+wallet = "~/Documents/proof-of-reserves/.secrets/tokenAuthority.json"
 
 [scripts]
 test = "cargo test"
 
-[test.validator]
+[test]
+startup_wait = 5000
+shutdown_wait = 2000
+upgradeable = false
+
 [[test.genesis]]
 address = "Gt9S41PtjR58CbG9JhJ3J6vxesqrNAswbWYbLNTMZA3c"
 program = "deps/verifier.so"
@@ -30,3 +33,8 @@ upgradeable = true
 address = "EjVftbXwfRZoZDzJ6eHArCqiBiPHBLq5zajRqMiHGH1A"
 program = "deps/access_controller.so"
 upgradeable = true
+
+[test.validator]
+bind_address = "0.0.0.0"
+ledger = ".anchor/test-ledger"
+rpc_port = 8899

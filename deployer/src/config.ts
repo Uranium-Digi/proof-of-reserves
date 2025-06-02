@@ -8,8 +8,8 @@ import WalletManager from './WalletManager'
 dotenv.config({ path: path.resolve(__dirname, '../../.env') })
 
 // Program IDs
-export const WRAP_TOKEN_PROGRAM_ID = 'HbMJgorqybuweCMEeXXg5HqPBAzLCfqiMEpqGrR2Dc9r'
-export const TOKEN_ADDRESS = '4FjZ9mf2UF79ip26m2TnQSuEeuwUP8Kui7dFs7ZEhvnM'
+export const WRAP_TOKEN_PROGRAM_ID = '2kg6WJrBjEhqPyWPdx3ct2KovhWD3hGoAihhwNo4XigW'
+export const TOKEN_ADDRESS = 'CsMMGfwyTKw8gY9FFJf31yb5RQA8xa6frjqRrXuL1YYd'
 
 // Connection
 export const NETWORK_USED: string = process.env.NETWORK_USED || 'devnet'

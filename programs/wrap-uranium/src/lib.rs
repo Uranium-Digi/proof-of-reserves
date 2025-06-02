@@ -7,7 +7,7 @@ mod utils;
 
 use instructions::*;
 
-declare_id!("6L33NZbnBxjerCLA4g5rVpHUc1LM4D6gQRrsxYi9zqj8");
+declare_id!("Bu3a53iRbrqi5mTsUWGVgWBYvPKPu87JWqafnaUxHVjW");
 
 #[program]
 pub mod wrap_uranium {
