@@ -406,7 +406,9 @@ async fn test_initialize() {
                 .request()
                 .accounts(wrap_uranium::accounts::Wrap {
                     signer: signer.pubkey(),
-                    signer_ata,
+                    // FIXME: this is a hack to set the owner to the signer
+                    owner: signer.pubkey(),
+                    owner_u_ata: signer_ata,
                     u: u.pubkey(),
                     wu,
                     config_pda,

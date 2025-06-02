@@ -60,9 +60,9 @@ pub mod wrap_uranium {
                 ctx.accounts.token_program.to_account_info(),
                 TransferChecked {
                     mint: ctx.accounts.u.to_account_info(),
-                    from: ctx.accounts.signer_ata.to_account_info(),
+                    from: ctx.accounts.owner_u_ata.to_account_info(),
                     to: ctx.accounts.config_pda_u_ata.to_account_info(),
-                    authority: ctx.accounts.signer.to_account_info(),
+                    authority: ctx.accounts.owner.to_account_info(),
                 },
             ),
             token_amount,

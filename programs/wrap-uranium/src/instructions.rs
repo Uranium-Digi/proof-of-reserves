@@ -204,6 +204,17 @@ pub struct Wrap<'info> {
     )]
     pub signer: Signer<'info>,
 
+    #[account(signer)]
+    pub owner: Signer<'info>,
+
+    #[account(
+        mut,
+        associated_token::mint = u,
+        associated_token::authority = owner,
+        associated_token::token_program = token_program
+    )]
+    pub owner_u_ata: Box<InterfaceAccount<'info, TokenAccount>>,
+
     #[account(
         seeds = [b"config_pda", u.key().as_ref()],
         bump,
@@ -222,14 +233,6 @@ pub struct Wrap<'info> {
         mint::token_program = token_program
     )]
     pub wu: Box<InterfaceAccount<'info, Mint>>,
-
-    #[account(
-        mut,
-        associated_token::mint = u,
-        associated_token::authority = signer,
-        associated_token::token_program = token_program
-    )]
-    pub signer_ata: Box<InterfaceAccount<'info, TokenAccount>>,
 
     /// CHECK: destination is not dangerous because we don't read or write from this account
     #[account()]
