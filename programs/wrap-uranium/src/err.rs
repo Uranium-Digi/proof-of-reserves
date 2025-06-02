@@ -4,6 +4,8 @@ pub enum CustomError {
     YouAreNotAdmin,
     YouAreNotWrapAuthority,
     YouAreNotUnwrapAuthority,
+    YouAreNotMintAndWrapAuthority,
+    YouAreNotUnwrapAndBurnAuthority,
     InvalidFee,
     InsufficientReserves,
     IssuanceFeeCalculationError,

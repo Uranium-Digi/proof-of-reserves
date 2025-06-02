@@ -29,6 +29,8 @@ pub mod wrap_uranium {
         ctx.accounts.config_pda.authority = ctx.accounts.signer.key();
         ctx.accounts.config_pda.wrap_authority = ctx.accounts.signer.key();
         ctx.accounts.config_pda.unwrap_authority = ctx.accounts.signer.key();
+        ctx.accounts.config_pda.mint_and_wrap_authority = ctx.accounts.signer.key();
+        ctx.accounts.config_pda.unwrap_and_burn_authority = ctx.accounts.signer.key();
         ctx.accounts.config_pda.issuance_fee_rate = 0;
         ctx.accounts.config_pda.redemption_fee_rate = 0;
         Ok(())
@@ -42,6 +44,10 @@ pub mod wrap_uranium {
         ctx.accounts.config_pda.authority = ctx.accounts.new_authority.key();
         ctx.accounts.config_pda.wrap_authority = ctx.accounts.new_wrap_authority.key();
         ctx.accounts.config_pda.unwrap_authority = ctx.accounts.new_unwrap_authority.key();
+        ctx.accounts.config_pda.mint_and_wrap_authority =
+            ctx.accounts.new_mint_and_wrap_authority.key();
+        ctx.accounts.config_pda.unwrap_and_burn_authority =
+            ctx.accounts.new_unwrap_and_burn_authority.key();
         ctx.accounts.config_pda.issuance_fee_rate = new_issuance_fee_rate;
         ctx.accounts.config_pda.redemption_fee_rate = new_redemption_fee_rate;
         Ok(())
@@ -60,7 +66,7 @@ pub mod wrap_uranium {
                 },
             ),
             token_amount,
-            9,
+            ctx.accounts.u.decimals,
         )?;
 
         mint_to(
@@ -110,7 +116,7 @@ pub mod wrap_uranium {
                 ]],
             ),
             amount_from_ata,
-            9,
+            ctx.accounts.u.decimals,
         )?;
 
         transfer_checked(
@@ -129,7 +135,7 @@ pub mod wrap_uranium {
                 ]],
             ),
             amount_from_fee_reserve,
-            9,
+            ctx.accounts.u.decimals,
         )?;
         burn(
             CpiContext::new(
@@ -168,7 +174,9 @@ pub mod wrap_uranium {
         let mint_data = &mut ctx.accounts.u.to_account_info();
         let transfer_fee_config = get_mint_extension_data::<TransferFeeConfig>(mint_data)?;
         let tx_fee_config = transfer_fee_config.get_epoch_fee(epoch);
-        let mintable = tx_fee_config.calculate_post_fee_amount(gross_issue).unwrap();
+        let mintable = tx_fee_config
+            .calculate_post_fee_amount(gross_issue)
+            .unwrap();
         let expected_transfer_fee = gross_issue - mintable;
 
         // Minting the mintable amount of U token to config_pda_u_ata
@@ -483,7 +491,7 @@ pub mod wrap_uranium {
                 ]],
             ),
             wrapped_token_amount,
-            9,
+            ctx.accounts.u.decimals,
         )?;
 
         // // This uses the fee_rebate_reserve to compensate for amount lost to fees
@@ -504,7 +512,7 @@ pub mod wrap_uranium {
         //         ]],
         //     ),
         //     amount_from_fee_reserve,
-        //     9,
+        //     ctx.accounts.u.decimals,
         // )?;
 
         // Burn the wU token from the owner wrapped ata

@@ -19,7 +19,6 @@ pub struct Initialize<'info> {
     #[account(mut)]
     pub signer: Signer<'info>,
 
-    
     /// CHECK: mint is not dangerous because we don't read or write from this account
     pub u: AccountInfo<'info>,
 
@@ -190,6 +189,10 @@ pub struct SetConfig<'info> {
     pub new_wrap_authority: AccountInfo<'info>,
     /// CHECK: This is not dangerous because we don't read or write from this account
     pub new_unwrap_authority: AccountInfo<'info>,
+    /// CHECK: This is not dangerous because we don't read or write from this account
+    pub new_mint_and_wrap_authority: AccountInfo<'info>,
+    /// CHECK: This is not dangerous because we don't read or write from this account
+    pub new_unwrap_and_burn_authority: AccountInfo<'info>,
 
 }
 
@@ -197,7 +200,7 @@ pub struct SetConfig<'info> {
 pub struct Wrap<'info> {
     #[account(
         mut,
-        constraint = signer.key() == config_pda.wrap_authority @ CustomError::YouAreNotWrapAuthority
+        constraint = signer.key() == config_pda.wrap_authority || signer.key() == config_pda.mint_and_wrap_authority @ CustomError::YouAreNotWrapAuthority
     )]
     pub signer: Signer<'info>,
 
@@ -258,7 +261,7 @@ pub struct Wrap<'info> {
 pub struct Unwrap<'info> {
     #[account(
         mut,
-        constraint = signer.key() == config_pda.unwrap_authority @ CustomError::YouAreNotUnwrapAuthority
+        constraint = signer.key() == config_pda.unwrap_authority || signer.key() == config_pda.unwrap_and_burn_authority @ CustomError::YouAreNotUnwrapAuthority
     )]
     pub signer: Signer<'info>,
 
@@ -330,7 +333,7 @@ pub struct Unwrap<'info> {
 pub struct MintAndWrap<'info> {
     #[account(
         mut,
-        constraint = signer.key() == config_pda.wrap_authority @ CustomError::YouAreNotUnwrapAuthority
+        constraint = signer.key() == config_pda.mint_and_wrap_authority @ CustomError::YouAreNotMintAndWrapAuthority
     )]
     pub signer: Signer<'info>,
 
@@ -423,6 +426,7 @@ pub struct MintAndWrap<'info> {
     pub system_program: Program<'info, System>,
 
     /// CHECK: This is not dangerous because we don't read or write from this account
+    #[account(address = oracle_updater::ID)]
     pub oracle_updater_program: AccountInfo<'info>,
 
     #[account(mut, seeds = [b"reserves"], bump, seeds::program = oracle_updater::ID)]
@@ -433,7 +437,7 @@ pub struct MintAndWrap<'info> {
 pub struct UnwrapAndBurn<'info> {
     #[account(
         mut,
-        constraint = signer.key() == config_pda.unwrap_authority @ CustomError::YouAreNotUnwrapAuthority
+        constraint = signer.key() == config_pda.unwrap_and_burn_authority @ CustomError::YouAreNotUnwrapAndBurnAuthority
     )]
     pub signer: Signer<'info>,
 
@@ -523,10 +527,7 @@ pub struct UnwrapAndBurn<'info> {
 
 #[derive(Accounts)]
 pub struct TopUpRebateReserves<'info> {
-    #[account(
-        mut,
-        constraint = signer.key() == config_pda.unwrap_authority @ CustomError::YouAreNotUnwrapAuthority
-    )]
+    #[account(signer)]
     pub signer: Signer<'info>,
 
     #[account(
