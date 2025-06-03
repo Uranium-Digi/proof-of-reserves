@@ -1,13 +1,13 @@
 {
-  "timestamp": "2025-06-02T22:03:48.469Z",
+  "timestamp": "2025-06-03T21:03:33.857Z",
   "network": "devnet",
   "addresses": {
-    "u": "CsMMGfwyTKw8gY9FFJf31yb5RQA8xa6frjqRrXuL1YYd",
-    "wu": "7SdFY7gZdhQzv5RpvujzbH5F31arZGXj8dkWJ2FmjBdN",
-    "configPda": "9JvGRamHX1mo5cK5u2izk9adcCMYoCpoxPrfpRNqz9M9",
-    "configPdaUAta": "2DyCS3J2MUQf8CXW3hrkrAtvBDncGa5e2gTeVL3LPufA",
-    "feeRebateReserveUAta": "FtsYcHP8VCWEGdNMhsusnxTM9Z2maZCCA3rF8yc96g59",
-    "wrapUraniumProgramId": "Bu3a53iRbrqi5mTsUWGVgWBYvPKPu87JWqafnaUxHVjW",
-    "oracleUpdaterProgramId": "4K9pG2QgchHtmxCVwMQB55Nfa17i9SqJYi98gwCmiUHA"
+    "u": "8QHMLm4TchmvMNrtaF1rhyiPNn62o1boJd4WHvfZ69kx",
+    "wu": "GixUxtsibyhbFFD3SP1p4deKpRPTMxZeJQdDDk9MstRZ",
+    "configPda": "BUpWYPr35nK8VMShQL6tRsUWvRB49gV4Jx5hUfa4fmeJ",
+    "configPdaUAta": "6EZxJ41QYow4CUfKZDws7zFmxR9dMM7rHGr87Z9F3QVW",
+    "feeRebateReserveUAta": "CrDH4TPutVrehi1Km5vXzo5pHpWA1ZtutDJpUPVsvKfw",
+    "wrapUraniumProgramId": "6HP4rFEb9v9yiSkgRTHXvYCsEAx6pxqaF7R4dyK2s7BV",
+    "oracleUpdaterProgramId": "2Yyp93nX4rJaN4eFE7AWMCRa4u4UBzAT4u2er8iNHu28"
   }
 }
