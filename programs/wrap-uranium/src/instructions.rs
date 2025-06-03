@@ -11,8 +11,6 @@ use crate::{err::CustomError, structs::Config};
 // *********** Naming Convention ***********
 // {authority}_{is_pda}_{token}_{is_ata}
 // eg: signer_u_ata, config_pda_u_ata
-//
-// special case: fee_rebate_reserve_u_ata
 
 #[derive(Accounts)]
 pub struct Initialize<'info> {
@@ -50,17 +48,6 @@ pub struct Initialize<'info> {
         associated_token::token_program = token_program
     )]
     pub config_pda_u_ata: Box<InterfaceAccount<'info, TokenAccount>>,
-
-    #[account(
-        init, 
-        payer = signer, 
-        token::mint = u,
-        token::authority = config_pda,
-        token::token_program = token_program,
-        seeds = [b"fee_rebate_reserve_u_ata", u.key().as_ref()],
-        bump
-    )]
-    pub fee_rebate_reserve_u_ata: Box<InterfaceAccount<'info, TokenAccount>>,
 
     pub token_program: Program<'info, Token2022>,
     pub associated_token_program: Program<'info, AssociatedToken>,
@@ -108,6 +95,8 @@ pub struct WithdrawMintAuthority<'info> {
 
     pub token_program: Program<'info, Token2022>,
 }
+
+
 
 #[derive(Accounts)]
 pub struct DepositWrappedMintAuthority<'info> {
@@ -161,6 +150,48 @@ pub struct WithdrawWrappedMintAuthority<'info> {
         mint::token_program = token_program
     )]
     pub wu: Box<InterfaceAccount<'info, Mint>>,
+
+    pub token_program: Program<'info, Token2022>,
+}
+
+#[derive(Accounts)]
+pub struct DepositWithdrawWithheldAuthority<'info> {
+    #[account(
+        mut,
+        constraint = signer.key() == config_pda.authority @ CustomError::YouAreNotAdmin
+    )]
+    pub signer: Signer<'info>,
+
+    #[account(
+        mut, 
+        seeds = [b"config_pda", u.key().as_ref()], 
+        bump,
+    )]
+    pub config_pda: Box<Account<'info, Config>>,
+
+    #[account(mut, mint::decimals = 9)]
+    pub u: Box<InterfaceAccount<'info, Mint>>,
+
+    pub token_program: Program<'info, Token2022>,
+}
+
+#[derive(Accounts)]
+pub struct WithdrawWithdrawWithheldAuthority<'info> {
+    #[account(
+        mut,
+        constraint = signer.key() == config_pda.authority @ CustomError::YouAreNotAdmin
+    )]
+    pub signer: Signer<'info>,
+
+    #[account(
+        mut, 
+        seeds = [b"config_pda", u.key().as_ref()], 
+        bump,
+    )]
+    pub config_pda: Box<Account<'info, Config>>,
+
+    #[account(mut, mint::decimals = 9)]
+    pub u: Box<InterfaceAccount<'info, Mint>>,
 
     pub token_program: Program<'info, Token2022>,
 }
@@ -316,16 +347,6 @@ pub struct Unwrap<'info> {
     )]
     pub signer_wu_ata: Box<InterfaceAccount<'info, TokenAccount>>,
 
-    #[account(
-        mut, 
-        token::mint = u,
-        token::authority = config_pda,
-        token::token_program = token_program,
-        seeds = [b"fee_rebate_reserve_u_ata", u.key().as_ref()],
-        bump
-    )]
-    pub fee_rebate_reserve_u_ata: Box<InterfaceAccount<'info, TokenAccount>>,
-
     pub token_program: Program<'info, Token2022>,
     pub associated_token_program: Program<'info, AssociatedToken>,
     pub system_program: Program<'info, System>,
@@ -413,16 +434,6 @@ pub struct MintAndWrap<'info> {
         associated_token::token_program = token_program
     )]
     pub company_wallet_wu_ata: Box<InterfaceAccount<'info, TokenAccount>>,
-
-    #[account(
-        mut, 
-        token::mint = u,
-        token::authority = config_pda,
-        token::token_program = token_program,
-        seeds = [b"fee_rebate_reserve_u_ata", u.key().as_ref()],
-        bump
-    )]
-    pub fee_rebate_reserve_u_ata: Box<InterfaceAccount<'info, TokenAccount>>,
 
     pub token_program: Program<'info, Token2022>,
     pub associated_token_program: Program<'info, AssociatedToken>,
@@ -512,73 +523,36 @@ pub struct UnwrapAndBurn<'info> {
     )]
     pub company_wallet_wu_ata:Box<InterfaceAccount<'info, TokenAccount>>,
 
-    #[account(
-        mut, 
-        token::mint = u,
-        token::authority = config_pda,
-        token::token_program = token_program,
-        seeds = [b"fee_rebate_reserve_u_ata", u.key().as_ref()],
-        bump
-    )]
-    pub fee_rebate_reserve_u_ata: Box<InterfaceAccount<'info, TokenAccount>>,
-
     pub token_program: Program<'info, Token2022>,
     pub associated_token_program: Program<'info, AssociatedToken>,
     pub system_program: Program<'info, System>,
 }
 
-
 #[derive(Accounts)]
-pub struct TopUpRebateReserves<'info> {
-    #[account(signer)]
+pub struct CollectWithheldTokens<'info> {
+    #[account(
+        mut,
+        constraint = signer.key() == config_pda.authority @ CustomError::YouAreNotAdmin
+    )]
     pub signer: Signer<'info>,
 
     #[account(
-        seeds = [b"config_pda", u.key().as_ref()],
+        mut, 
+        seeds = [b"config_pda", u.key().as_ref()], 
         bump,
     )]
     pub config_pda: Box<Account<'info, Config>>,
 
-    #[account(mint::decimals = 9)]
-    pub u: InterfaceAccount<'info, Mint>,
-
+    #[account(mut, mint::decimals = 9)]
+    pub u: Box<InterfaceAccount<'info, Mint>>,
+   
     #[account(
-        mut,
-        seeds = [b"wu", u.key().as_ref()],
-        bump,
-        mint::decimals = 9, 
-        mint::authority = config_pda,
-        mint::token_program = token_program
-    )]
-    pub wu: Box<InterfaceAccount<'info, Mint>>,
-
-    #[account(
-        mut, 
-        associated_token::mint = u,
-        associated_token::authority = config_pda,
-        associated_token::token_program = token_program
-    )]
-    pub config_pda_u_ata: Box<InterfaceAccount<'info, TokenAccount>>,
-
-    #[account(
-        mut,
-        associated_token::mint = wu,
-        associated_token::authority = signer,
-        associated_token::token_program = token_program
-    )]
-    pub signer_wu_ata: Box<InterfaceAccount<'info, TokenAccount>>,
-
-    #[account(
-        mut, 
+        mut,    
         token::mint = u,
-        token::authority = config_pda,
-        token::token_program = token_program,
-        seeds = [b"fee_rebate_reserve_u_ata", u.key().as_ref()],
-        bump
+        token::token_program = token_program
     )]
-    pub fee_rebate_reserve_u_ata: Box<InterfaceAccount<'info, TokenAccount>>,
+    pub destination: Box<InterfaceAccount<'info, TokenAccount>>,
 
     pub token_program: Program<'info, Token2022>,
-    pub associated_token_program: Program<'info, AssociatedToken>,
     pub system_program: Program<'info, System>,
 }

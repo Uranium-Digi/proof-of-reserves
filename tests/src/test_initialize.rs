@@ -238,12 +238,6 @@ async fn test_initialize() {
     let config_pda =
         Pubkey::find_program_address(&[b"config_pda", u.pubkey().as_ref()], &program_id).0;
 
-    let fee_rebate_reserve_u_ata = Pubkey::find_program_address(
-        &[b"fee_rebate_reserve_u_ata", u.pubkey().as_ref()],
-        &program_id,
-    )
-    .0;
-
     let config_pda_u_ata = get_associated_token_address_with_program_id(
         &config_pda, // owner
         &u.pubkey(), // mint
@@ -338,7 +332,6 @@ async fn test_initialize() {
                     wu,
                     config_pda,
                     config_pda_u_ata,
-                    fee_rebate_reserve_u_ata,
                     token_program: spl_token_2022::ID,
                     associated_token_program: spl_associated_token_account::ID,
                     system_program: solana_program::system_program::ID,
@@ -347,18 +340,22 @@ async fn test_initialize() {
                 .instructions()
                 .unwrap(),
         );
-        println!("Minting to fee rebate reserve");
-        ixs.push(
-            spl_token_2022::instruction::mint_to(
-                &spl_token_2022::ID,
-                &u.pubkey(),
-                &fee_rebate_reserve_u_ata,
-                &signer.pubkey(),
-                &[],
-                1_000_000 * LAMPORTS_PER_SOL,
-            )
-            .unwrap(),
+
+        println!("Depositing withdraw withheld authority");
+        ixs.append(
+            &mut program
+                .request()
+                .accounts(wrap_uranium::accounts::DepositWithdrawWithheldAuthority {
+                    signer: signer.pubkey(),
+                    config_pda,
+                    u: u.pubkey(),
+                    token_program: spl_token_2022::ID,
+                })
+                .args(wrap_uranium::instruction::DepositWithdrawWithheldAuthority {})
+                .instructions()
+                .unwrap(),
         );
+
         // This is just for the tests - at launch this will not be necessary
         println!("Minting to signer");
         ixs.push(create_associated_token_account(
@@ -489,7 +486,6 @@ async fn test_initialize() {
                     config_pda_u_ata,
                     destination: master_wallet.pubkey(),
                     destination_ata: master_wallet_ata,
-                    fee_rebate_reserve_u_ata,
                     token_program: spl_token_2022::ID,
                     associated_token_program: spl_associated_token_account::ID,
                     system_program: solana_program::system_program::ID,
@@ -575,7 +571,6 @@ async fn test_initialize() {
                     master_wallet_wu_ata,
                     company_wallet: company_wallet.pubkey(),
                     company_wallet_wu_ata,
-                    fee_rebate_reserve_u_ata,
                     token_program: spl_token_2022::ID,
                     associated_token_program: spl_associated_token_account::ID,
                     system_program: solana_program::system_program::ID,
@@ -651,7 +646,6 @@ async fn test_initialize() {
                     redemption_wallet_pda_wu_ata,
                     company_wallet: company_wallet.pubkey(),
                     company_wallet_wu_ata,
-                    fee_rebate_reserve_u_ata,
                     token_program: spl_token_2022::ID,
                     associated_token_program: spl_associated_token_account::ID,
                     system_program: solana_program::system_program::ID,
