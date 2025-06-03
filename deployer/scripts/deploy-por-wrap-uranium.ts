@@ -207,44 +207,6 @@ export async function initialize(
     }
 }
 
-// This is to prep for withdrawals
-export async function mintToFeeRebateReserve(
-    tokenAuthority: Keypair,
-    fundingWallet: Keypair,
-    wrapUraniumIDL: any,
-    uraniumTokenAddress: string,
-    amount: number,
-) {
-    const u = await uraniumToken(uraniumTokenAddress)
-    const programWrapUranium = await wrapUraniumProgram(wrapUraniumIDL)
-    const [feeRebateReserveUAta] = anchor.web3.PublicKey.findProgramAddressSync(
-        [Buffer.from('fee_rebate_reserve_u_ata'), u.toBuffer()],
-        programWrapUranium.programId,
-    )
-    console.log('mintToFeeRebateReserve | feeRebateReserveUAta:', feeRebateReserveUAta)
-    try {
-        const tx = await mintTo(
-            anchorConnection,
-            fundingWallet,
-            u,
-            feeRebateReserveUAta,
-            tokenAuthority,
-            amount,
-            [],
-            { commitment: 'processed' },
-            TOKEN_2022_PROGRAM_ID,
-        )
-        console.log(
-            `Minted ${amount.toString()} tokens to ${feeRebateReserveUAta.toString()} - the feeRebateReserveAta`,
-        )
-        console.log('Mint to feeRebateReserveUAta tx: ', tx)
-        await new Promise((resolve) => setTimeout(resolve, 10000))
-    } catch (e: any) {
-        console.error('mintToFeeRebateReserve failed', e)
-        console.log(await e.getLogs())
-    }
-}
-
 export async function depositMintAuthority(
     tokenAuthority: Keypair,
     fundingWallet: Keypair,
@@ -283,6 +245,51 @@ export async function depositMintAuthority(
             },
         )
         console.log('\n🎉 DepositMintAuthority Transaction successful! 🎉\n Signature:', tx)
+        await new Promise((resolve) => setTimeout(resolve, 10000))
+    } catch (e: any) {
+        console.error('DepositMintAuthority failed', e)
+        console.log(e.getLogs())
+    }
+}
+
+export async function depositWithdrawWithheldAuthority(
+    tokenAuthority: Keypair,
+    fundingWallet: Keypair,
+    wrapUraniumIDL: any,
+    uraniumTokenAddress: string,
+) {
+    console.log('\n🌟 🌟 🌟 depositing withdrawWithheld authority! 🌟 🌟 🌟\n')
+    const u = await uraniumToken(uraniumTokenAddress)
+    const programWrapUranium = await wrapUraniumProgram(wrapUraniumIDL)
+
+    const [configPDA] = anchor.web3.PublicKey.findProgramAddressSync(
+        [Buffer.from('config_pda'), u.toBuffer()],
+        programWrapUranium.programId,
+    )
+
+    const depositMintAuthorityIx = await programWrapUranium.methods
+        .depositWithdrawWithheldAuthority()
+        .accountsPartial({
+            signer: tokenAuthority.publicKey,
+            config: configPDA,
+            u: u,
+            token_program: TOKEN_2022_PROGRAM_ID,
+        })
+        .signers([tokenAuthority])
+        .instruction()
+
+    const transaction = new anchor.web3.Transaction().add(depositMintAuthorityIx)
+
+    try {
+        const tx = await anchor.web3.sendAndConfirmTransaction(
+            anchorConnection,
+            transaction,
+            [fundingWallet, tokenAuthority],
+            {
+                commitment: 'confirmed',
+            },
+        )
+        console.log('\n🎉 DepositWithdrawWithheldAuthority Transaction successful! 🎉\n Signature:', tx)
         await new Promise((resolve) => setTimeout(resolve, 10000))
     } catch (e: any) {
         console.error('DepositMintAuthority failed', e)
@@ -361,8 +368,6 @@ async function main(
         feeRebateReserveUAta: feeRebateReserveUAtaAddress,
         wrapUraniumProgramId: wrapUraniumProgramId,
     } = await initialize(tokenAuthority, fundingWallet, wrapUraniumIdl, u.toBase58())
-
-    await mintToFeeRebateReserve(tokenAuthority, fundingWallet, wrapUraniumIdl, u.toBase58(), 1000000)
 
     await depositMintAuthority(tokenAuthority, fundingWallet, wrapUraniumIdl, u.toBase58())
 

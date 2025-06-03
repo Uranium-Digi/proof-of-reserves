@@ -6,16 +6,15 @@ resolution = true
 skip-lint = false
 
 [programs.localnet]
-oracle_updater = "4K9pG2QgchHtmxCVwMQB55Nfa17i9SqJYi98gwCmiUHA"
-wrap_uranium = "Bu3a53iRbrqi5mTsUWGVgWBYvPKPu87JWqafnaUxHVjW"
+oracle_updater = "2Yyp93nX4rJaN4eFE7AWMCRa4u4UBzAT4u2er8iNHu28"
+wrap_uranium = "6HP4rFEb9v9yiSkgRTHXvYCsEAx6pxqaF7R4dyK2s7BV"
 
 [registry]
 url = "https://api.apr.dev"
 
 [provider]
 cluster = "localnet"
-#wallet = "~/Documents/proof-of-reserves/.secrets/tokenAuthority.json"
-wallet = "~/projects/ud/proof-of-reserves/.secrets/tokenAuthority.json"
+wallet = "~/Documents/proof-of-reserves/.secrets/tokenAuthority.json"
 
 [scripts]
 test = "cargo test"
