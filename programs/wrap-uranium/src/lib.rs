@@ -62,6 +62,37 @@ pub mod wrap_uranium {
 
     // mint -> wrapped_mint
     pub fn wrap(ctx: Context<Wrap>, token_amount: u64) -> Result<()> {
+        let owner_u_ata_balance_before_rebate = ctx.accounts.owner_u_ata.amount;
+        // rebate the transfer tax into back into the owner_u_ata,
+        // NOTE: this bascially make all the txs sent to the owner_u_ata tax free
+        withdraw_withheld_tokens_from_accounts(
+            CpiContext::new_with_signer(
+                ctx.accounts.token_program.to_account_info(),
+                WithdrawWithheldTokensFromAccounts {
+                    mint: ctx.accounts.u.to_account_info(),
+                    destination: ctx.accounts.owner_u_ata.to_account_info(),
+                    authority: ctx.accounts.config_pda.to_account_info(),
+                    token_program_id: ctx.accounts.token_program.to_account_info(),
+                },
+                &[&[
+                    b"config_pda",
+                    ctx.accounts.u.key().as_ref(),
+                    &[ctx.bumps.config_pda],
+                ]],
+            ),
+            vec![ctx.accounts.owner_u_ata.to_account_info()],
+        )?;
+
+        // reload the owner_u_ata to get the latest balance
+        ctx.accounts.owner_u_ata.reload()?;
+
+        let owner_u_ata_balance_after_rebate = ctx.accounts.owner_u_ata.amount;
+        let rebated_amount = owner_u_ata_balance_after_rebate
+            .checked_sub(owner_u_ata_balance_before_rebate)
+            .unwrap();
+
+        let total_wrap_amount = token_amount + rebated_amount;
+
         transfer_checked(
             CpiContext::new(
                 ctx.accounts.token_program.to_account_info(),
@@ -72,7 +103,7 @@ pub mod wrap_uranium {
                     authority: ctx.accounts.owner.to_account_info(),
                 },
             ),
-            token_amount,
+            total_wrap_amount,
             ctx.accounts.u.decimals,
         )?;
 
@@ -110,7 +141,7 @@ pub mod wrap_uranium {
                     &[ctx.bumps.config_pda],
                 ]],
             ),
-            token_amount,
+            total_wrap_amount,
         )?;
         Ok(())
     }
