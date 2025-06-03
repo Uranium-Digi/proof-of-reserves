@@ -110,6 +110,27 @@ pub struct WithdrawMintAuthority<'info> {
 }
 
 #[derive(Accounts)]
+pub struct DepositWithdrawWithheldAuthority<'info> {
+    #[account(
+        mut,
+        constraint = signer.key() == config_pda.authority @ CustomError::YouAreNotAdmin
+    )]
+    pub signer: Signer<'info>,
+
+    #[account(
+        mut, 
+        seeds = [b"config_pda", u.key().as_ref()], 
+        bump,
+    )]
+    pub config_pda: Box<Account<'info, Config>>,
+
+    #[account(mut, mint::decimals = 9)]
+    pub u: Box<InterfaceAccount<'info, Mint>>,
+
+    pub token_program: Program<'info, Token2022>,
+}
+
+#[derive(Accounts)]
 pub struct DepositWrappedMintAuthority<'info> {
     #[account(
         mut,

@@ -11,10 +11,17 @@ declare_id!("Bu3a53iRbrqi5mTsUWGVgWBYvPKPu87JWqafnaUxHVjW");
 
 #[program]
 pub mod wrap_uranium {
-    use anchor_spl::token_2022::{
-        burn, mint_to, set_authority,
-        spl_token_2022::{extension::transfer_fee::TransferFeeConfig, instruction::AuthorityType},
-        transfer_checked, Burn, MintTo, SetAuthority, TransferChecked,
+    use anchor_spl::{
+        token_2022::{
+            burn, mint_to, set_authority,
+            spl_token_2022::{
+                extension::transfer_fee::TransferFeeConfig, instruction::AuthorityType,
+            },
+            transfer_checked, Burn, MintTo, SetAuthority, TransferChecked,
+        },
+        token_interface::{
+            withdraw_withheld_tokens_from_accounts, WithdrawWithheldTokensFromAccounts,
+        },
     };
     use utils::{calculate_burn_amount, calculate_transfer_amount, get_mint_extension_data};
 
@@ -69,6 +76,26 @@ pub mod wrap_uranium {
             ctx.accounts.u.decimals,
         )?;
 
+        // rebate the transfer tax into config_pda_u_ata,
+        // this will make the wrapped amount 100% goes into the config_pda_u_ata
+        withdraw_withheld_tokens_from_accounts(
+            CpiContext::new_with_signer(
+                ctx.accounts.token_program.to_account_info(),
+                WithdrawWithheldTokensFromAccounts {
+                    mint: ctx.accounts.u.to_account_info(),
+                    destination: ctx.accounts.config_pda_u_ata.to_account_info(),
+                    authority: ctx.accounts.config_pda.to_account_info(),
+                    token_program_id: ctx.accounts.token_program.to_account_info(),
+                },
+                &[&[
+                    b"config_pda",
+                    ctx.accounts.u.key().as_ref(),
+                    &[ctx.bumps.config_pda],
+                ]],
+            ),
+            vec![ctx.accounts.config_pda_u_ata.to_account_info()],
+        )?;
+
         mint_to(
             CpiContext::new_with_signer(
                 ctx.accounts.token_program.to_account_info(),
@@ -90,16 +117,6 @@ pub mod wrap_uranium {
 
     // wraped_mint -> mint
     pub fn unwrap(ctx: Context<Unwrap>, token_amount: u64) -> Result<()> {
-        let epoch = Clock::get()?.epoch;
-        let mint_data = &mut ctx.accounts.u.to_account_info();
-        let transfer_fee_config = get_mint_extension_data::<TransferFeeConfig>(mint_data)?;
-
-        let fee = transfer_fee_config.get_epoch_fee(epoch);
-        let (amount_from_ata, amount_from_fee_reserve) =
-            calculate_transfer_amount(&fee, token_amount)?;
-
-        let balance_before = ctx.accounts.destination_ata.amount;
-
         transfer_checked(
             CpiContext::new_with_signer(
                 ctx.accounts.token_program.to_account_info(),
@@ -115,18 +132,20 @@ pub mod wrap_uranium {
                     &[ctx.bumps.config_pda],
                 ]],
             ),
-            amount_from_ata,
+            token_amount,
             ctx.accounts.u.decimals,
         )?;
 
-        transfer_checked(
+        // rebate the transfer tax into destination_ata
+        // this will make the unwrapped amount 100% goes into the destination_ata
+        withdraw_withheld_tokens_from_accounts(
             CpiContext::new_with_signer(
                 ctx.accounts.token_program.to_account_info(),
-                TransferChecked {
+                WithdrawWithheldTokensFromAccounts {
                     mint: ctx.accounts.u.to_account_info(),
-                    from: ctx.accounts.fee_rebate_reserve_u_ata.to_account_info(),
-                    to: ctx.accounts.destination_ata.to_account_info(),
+                    destination: ctx.accounts.destination_ata.to_account_info(),
                     authority: ctx.accounts.config_pda.to_account_info(),
+                    token_program_id: ctx.accounts.token_program.to_account_info(),
                 },
                 &[&[
                     b"config_pda",
@@ -134,9 +153,9 @@ pub mod wrap_uranium {
                     &[ctx.bumps.config_pda],
                 ]],
             ),
-            amount_from_fee_reserve,
-            ctx.accounts.u.decimals,
+            vec![ctx.accounts.destination_ata.to_account_info()],
         )?;
+
         burn(
             CpiContext::new(
                 ctx.accounts.token_program.to_account_info(),
@@ -148,11 +167,6 @@ pub mod wrap_uranium {
             ),
             token_amount,
         )?;
-
-        // reload the account balance after the transfer CPI call and make sure the amount is correct
-        ctx.accounts.destination_ata.reload()?;
-        let balance_after = ctx.accounts.destination_ata.amount;
-        assert_eq!(balance_after - balance_before, token_amount);
 
         Ok(())
     }
@@ -415,6 +429,23 @@ pub mod wrap_uranium {
             ),
             AuthorityType::MintTokens,
             Some(ctx.accounts.signer.key()),
+        )?;
+        Ok(())
+    }
+
+    pub fn deposit_withdraw_withheld_authority(
+        ctx: Context<DepositWithdrawWithheldAuthority>,
+    ) -> Result<()> {
+        set_authority(
+            CpiContext::new(
+                ctx.accounts.token_program.to_account_info(),
+                SetAuthority {
+                    current_authority: ctx.accounts.signer.to_account_info(),
+                    account_or_mint: ctx.accounts.u.to_account_info(),
+                },
+            ),
+            AuthorityType::WithheldWithdraw,
+            Some(ctx.accounts.config_pda.key()),
         )?;
         Ok(())
     }

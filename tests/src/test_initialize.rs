@@ -347,6 +347,21 @@ async fn test_initialize() {
                 .instructions()
                 .unwrap(),
         );
+
+        println!("Depositing withdraw withheld authority");
+        ixs.append(
+            &mut program
+                .request()
+                .accounts(wrap_uranium::accounts::DepositWithdrawWithheldAuthority {
+                    signer: signer.pubkey(),
+                    config_pda,
+                    u: u.pubkey(),
+                    token_program: spl_token_2022::ID,
+                })
+                .args(wrap_uranium::instruction::DepositWithdrawWithheldAuthority {})
+                .instructions()
+                .unwrap(),
+        );
         println!("Minting to fee rebate reserve");
         ixs.push(
             spl_token_2022::instruction::mint_to(
