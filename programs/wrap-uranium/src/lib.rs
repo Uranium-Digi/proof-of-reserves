@@ -13,17 +13,14 @@ declare_id!("Bu3a53iRbrqi5mTsUWGVgWBYvPKPu87JWqafnaUxHVjW");
 pub mod wrap_uranium {
     use anchor_spl::{
         token_2022::{
-            burn, mint_to, set_authority,
-            spl_token_2022::{
-                extension::transfer_fee::TransferFeeConfig, instruction::AuthorityType,
-            },
+            burn, mint_to, set_authority, spl_token_2022::instruction::AuthorityType,
             transfer_checked, Burn, MintTo, SetAuthority, TransferChecked,
         },
         token_interface::{
-            withdraw_withheld_tokens_from_accounts, WithdrawWithheldTokensFromAccounts,
+            withdraw_withheld_tokens_from_accounts, withdraw_withheld_tokens_from_mint,
+            WithdrawWithheldTokensFromAccounts, WithdrawWithheldTokensFromMint,
         },
     };
-    use utils::{calculate_burn_amount, calculate_transfer_amount, get_mint_extension_data};
 
     use crate::{
         err::CustomError,
@@ -457,8 +454,10 @@ pub mod wrap_uranium {
         Ok(())
     }
 
-    /*
-    pub fn collect_withheld_tokens(ctx: Context<CollectWithheldTokens>) -> Result<()> {
+    // collect all the withheld tokens from the `remaining_accounts` and send them to the `destination` account
+    pub fn collect_withheld_tokens_from_accounts<'info>(
+        ctx: Context<'_, '_, '_, 'info, CollectWithheldTokensFromAccounts<'info>>,
+    ) -> Result<()> {
         withdraw_withheld_tokens_from_accounts(
             CpiContext::new_with_signer(
                 ctx.accounts.token_program.to_account_info(),
@@ -478,5 +477,47 @@ pub mod wrap_uranium {
         )?;
         Ok(())
     }
-    */
+
+    // collect all the withheld tokens from the `remaining_accounts` and send them to the `destination` account
+    pub fn collect_withheld_tokens_from_mint(
+        ctx: Context<CollectWithheldTokensFromMint>,
+    ) -> Result<()> {
+        withdraw_withheld_tokens_from_mint(CpiContext::new_with_signer(
+            ctx.accounts.token_program.to_account_info(),
+            WithdrawWithheldTokensFromMint {
+                mint: ctx.accounts.u.to_account_info(),
+                destination: ctx.accounts.destination.to_account_info(),
+                authority: ctx.accounts.config_pda.to_account_info(),
+                token_program_id: ctx.accounts.token_program.to_account_info(),
+            },
+            &[&[
+                b"config_pda",
+                ctx.accounts.u.key().as_ref(),
+                &[ctx.bumps.config_pda],
+            ]],
+        ))?;
+        Ok(())
+    }
+
+    // collect all the withheld tokens from the `destination` account and send them to the `destination` account
+    pub fn rebate_withheld_tokens(ctx: Context<RebateWithheldTokens>) -> Result<()> {
+        withdraw_withheld_tokens_from_accounts(
+            CpiContext::new_with_signer(
+                ctx.accounts.token_program.to_account_info(),
+                WithdrawWithheldTokensFromAccounts {
+                    mint: ctx.accounts.u.to_account_info(),
+                    destination: ctx.accounts.destination.to_account_info(),
+                    authority: ctx.accounts.config_pda.to_account_info(),
+                    token_program_id: ctx.accounts.token_program.to_account_info(),
+                },
+                &[&[
+                    b"config_pda",
+                    ctx.accounts.u.key().as_ref(),
+                    &[ctx.bumps.config_pda],
+                ]],
+            ),
+            vec![ctx.accounts.destination.to_account_info()],
+        )?;
+        Ok(())
+    }
 }
