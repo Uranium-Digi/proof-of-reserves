@@ -723,22 +723,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "bitcoin-io"
-version = "0.1.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0b47c4ab7a93edb0c7198c5535ed9b52b63095f4e9b45279c6736cec4b856baf"
-
-[[package]]
-name = "bitcoin_hashes"
-version = "0.14.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bb18c03d0db0247e147a21a6faafd5a7eb851c743db062de72018b6b7e8e4d16"
-dependencies = [
- "bitcoin-io",
- "hex-conservative",
-]
-
-[[package]]
 name = "bitflags"
 version = "1.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2147,15 +2131,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
 
 [[package]]
-name = "hex-conservative"
-version = "0.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5313b072ce3c597065a808dbf612c4c8e8590bdbf8b579508bf7a762c5eae6cd"
-dependencies = [
- "arrayvec 0.7.6",
-]
-
-[[package]]
 name = "hex-literal"
 version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3531,7 +3506,6 @@ dependencies = [
  "solana-client",
  "solana-program-test",
  "solana-sdk",
- "test_utils",
  "tokio",
  "transmitter",
  "verifier",
@@ -4069,17 +4043,6 @@ dependencies = [
 
 [[package]]
 name = "rustls-webpki"
-version = "0.102.8"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "64ca1bc8749bd4cf37b5ce386cc146580777b4e8572c7b97baf22c83f444bee9"
-dependencies = [
- "ring",
- "rustls-pki-types",
- "untrusted",
-]
-
-[[package]]
-name = "rustls-webpki"
 version = "0.103.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e4a72fe2bcf7a6ac6fd7d0b9e5cb68aeb7d4c0a0271730218b3e92d43b4eb435"
@@ -4142,26 +4105,6 @@ checksum = "da046153aa2352493d6cb7da4b6e5c0c057d8a1d0a9aa8560baffdd945acd414"
 dependencies = [
  "ring",
  "untrusted",
-]
-
-[[package]]
-name = "secp256k1"
-version = "0.30.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b50c5943d326858130af85e049f2661ba3c78b26589b8ab98e65e80ae44a1252"
-dependencies = [
- "bitcoin_hashes",
- "rand 0.8.5",
- "secp256k1-sys",
-]
-
-[[package]]
-name = "secp256k1-sys"
-version = "0.10.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d4387882333d3aa8cb20530a17c69a3752e97837832f34f6dccc760e715001d9"
-dependencies = [
- "cc",
 ]
 
 [[package]]
@@ -8083,28 +8026,6 @@ name = "termtree"
 version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8f50febec83f5ee1df3015341d8bd429f2d1cc62bcba7ea2076759d315084683"
-
-[[package]]
-name = "test_utils"
-version = "0.1.0"
-source = "git+https://github.com/Uranium-Digi/chainlink-data-streams-solana.git#2926dfbb47e5b62af42ef8e0e401cfeee81f7c3b"
-dependencies = [
- "access-controller",
- "anchor-lang",
- "arrayref",
- "ethabi",
- "hex",
- "hex-literal",
- "rustls-webpki 0.102.8",
- "secp256k1",
- "sha3",
- "snap",
- "solana-program",
- "solana-program-test",
- "solana-sdk",
- "tiny-keccak",
- "verifier",
-]
 
 [[package]]
 name = "thiserror"

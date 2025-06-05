@@ -23,7 +23,7 @@ pub fn load_proof_of_reserves_program_id() -> Pubkey {
     proof_of_reserves::ID
 }
 
-pub fn load_oracle_updater(
+pub fn load_proof_of_reserves(
     cluster: Option<Cluster>,
     route_type: RouteType,
     wallet_path_name: Option<String>,

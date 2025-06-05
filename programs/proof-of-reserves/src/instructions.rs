@@ -122,14 +122,6 @@ pub struct Issue<'info> {
     )]
     pub u: Box<InterfaceAccount<'info, Mint>>,
 
-    #[account(
-        mut, 
-        associated_token::mint = u,
-        associated_token::authority = config_pda,
-        associated_token::token_program = token_program
-    )]
-    pub config_pda_u_ata: Box<InterfaceAccount<'info, TokenAccount>>,
-
     /// CHECK: issuance_wallet_pda is not dangerous because we don't read or write from this account
     #[account(
         seeds = [b"issuance_wallet_pda", u.key().as_ref()],
@@ -194,7 +186,6 @@ pub struct Redeem<'info> {
         associated_token::token_program = token_program
     )]
     pub signer_u_ata: Box<InterfaceAccount<'info, TokenAccount>>,
-    
 
     #[account(
         seeds = [b"config_pda", u.key().as_ref()],
@@ -208,14 +199,6 @@ pub struct Redeem<'info> {
         mint::token_program = token_program
     )]
     pub u: Box<InterfaceAccount<'info, Mint>>,
-
-    #[account(
-        mut, 
-        associated_token::mint = u,
-        associated_token::authority = config_pda,
-        associated_token::token_program = token_program
-    )]
-    pub config_pda_u_ata: Box<InterfaceAccount<'info, TokenAccount>>,
 
     /// CHECK: redemption_wallet_pda is not dangerous because we don't read or write from this account
     #[account(

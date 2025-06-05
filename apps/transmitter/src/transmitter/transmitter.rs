@@ -14,7 +14,7 @@ use proof_of_reserves;
 
 use snap::raw::Encoder;
 
-use crate::utils::proof_of_reserves_loader::{load_oracle_updater, RouteType};
+use crate::utils::proof_of_reserves_loader::{load_proof_of_reserves, RouteType};
 
 pub const CHAINLINK_VERIFIER_PROGRAM_ID_DEVNET: &str =
     "Gt9S41PtjR58CbG9JhJ3J6vxesqrNAswbWYbLNTMZA3c";
@@ -31,9 +31,7 @@ pub struct Transmitter {
 impl Transmitter {
     pub fn new(cluster: Option<Cluster>, wallet_path_name: Option<String>) -> Result<Self> {
         let (program, program_id) =
-            load_oracle_updater(cluster, RouteType::default(), wallet_path_name)?;
-
-        println!("program_id: {}", program_id);
+            load_proof_of_reserves(cluster, RouteType::default(), wallet_path_name)?;
 
         Ok(Self {
             program,
