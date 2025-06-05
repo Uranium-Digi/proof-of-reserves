@@ -27,14 +27,10 @@ export interface TokenConfig {
     name: string
     symbol: string
     uri: string
-    description?: string
+    description: string
     decimals: number
     initialSupply: bigint
-    vanityAddress?: Keypair
-    feeConfig: {
-        feeBasisPoints: number
-        maxFee: bigint
-    }
+    vanityAddress?: Keypair | undefined
 }
 
 export class TokenDeployer {
@@ -98,10 +94,6 @@ export class TokenDeployer {
         const metadataLen = TYPE_SIZE + LENGTH_SIZE + pack(metadata).length
         const extensions = [ExtensionType.MetadataPointer]
 
-        if (config.feeConfig) {
-            extensions.push(ExtensionType.TransferFeeConfig)
-        }
-
         const mintLen = getMintLen(extensions)
         const mintLamports = await this.common.connection.getMinimumBalanceForRentExemption(mintLen + metadataLen)
 
@@ -114,14 +106,7 @@ export class TokenDeployer {
                 programId: TOKEN_2022_PROGRAM_ID,
             }),
             createInitializeMetadataPointerInstruction(mint, payer.publicKey, mint, TOKEN_2022_PROGRAM_ID),
-            createInitializeTransferFeeConfigInstruction(
-                mint,
-                tokenAuthority.publicKey,
-                tokenAuthority.publicKey,
-                config.feeConfig.feeBasisPoints,
-                config.feeConfig.maxFee,
-                TOKEN_2022_PROGRAM_ID,
-            ),
+
             createInitializeMintInstruction(
                 mint,
                 config.decimals,
