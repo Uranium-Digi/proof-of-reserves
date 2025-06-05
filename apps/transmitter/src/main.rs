@@ -13,6 +13,7 @@ pub mod utils;
 use anchor_client::solana_sdk::{commitment_config::CommitmentConfig, signer::Signer};
 
 use std::env;
+use std::rc::Rc;
 
 const DEFAULT_FEED_ID: &str = "0x000359843a543ee2fe414dc14c7e7920ef10f4372990b79d6361cdc0dd1ba782";
 
@@ -22,7 +23,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // let report = directapi::run().await?;
     let cluster = Some(Cluster::Devnet);
-    let transmitter = Transmitter::new(cluster, None)?;
+    let signer = load_funding_wallet(None)?;
+    let transmitter = Transmitter::new(cluster, Rc::new(signer))?;
     // let report = websocket::run();
 
     websocket::run(&transmitter).await?;

@@ -167,7 +167,7 @@ pub struct Issue<'info> {
     pub associated_token_program: Program<'info, AssociatedToken>,
     pub system_program: Program<'info, System>,
 
-    #[account(mut, seeds = [b"reserves"], bump)]
+    #[account(mut, seeds = [b"reserves", u.key().as_ref()], bump)]
     pub reserves_pda: Box<Account<'info, Reserves>>,
 }
 
@@ -243,19 +243,28 @@ pub struct Verify<'info> {
     /// /// CHECK: The account strudcture is validated by the verifier program.
     pub access_controller: AccountInfo<'info>,
     /// The account that signs the transaction.
-    #[account(mut)]
+    /// CHECK: The mint is not dangerous because we don't read or write from this account
+    pub u: AccountInfo<'info>,
+
+    #[account(mut, constraint = user.key() == config_pda.update_authority.key() @ CustomError::YouAreNotUpdateAuthority)]
     pub user: Signer<'info>,
-    // pub user: Signer<'info>,
+
+    #[account(
+        mut,
+        seeds = [b"config_pda", u.key().as_ref()],
+        bump,
+    )]
+    pub config_pda: Box<Account<'info, Config>>,
     /// The Config Account is a PDA derived from a signed report
     /// CHECK: the account is validated by the verifier program.
-    pub config_account: AccountInfo<'info>,
+    pub verifier_config_account: AccountInfo<'info>,
     /// The Verifier Program ID specifies the target Chainlink Data Streams Verifier program
     /// CHECK: The program ID is validated by the verifier program.
     pub verifier_program_id: AccountInfo<'info>,
     /// PDA that stores the last verified report
     #[account(
         init_if_needed,
-        seeds=[b"proof_v4"],
+        seeds=[b"proof_v4", u.key().as_ref()],
         bump,
         payer = user,
         space = 8 + 4 + 1024 // space = 8 + std::mem::size_of::<CompressedProof>()
@@ -263,18 +272,31 @@ pub struct Verify<'info> {
     pub compressed_proof: Account<'info, CompressedProof>, // should be an account
 
     #[account(init_if_needed,
-        seeds=[b"reserves"],
+        seeds=[b"reserves", u.key().as_ref()],
         bump,
         payer = user,
         space = 8 + 8,
     )]
-    pub reserves_account: Account<'info, Reserves>,
+    pub reserves: Account<'info, Reserves>,
     pub system_program: Program<'info, System>,
 }
 
 #[derive(Accounts)]
 pub struct ReservesContext<'info> {
-    #[account(mut, seeds=[b"reserves"], bump)]
+    #[account(mut, constraint = signer.key() == config_pda.update_authority @ CustomError::YouAreNotUpdateAuthority)]
+    pub signer: Signer<'info>,
+
+    /// CHECK: mint is not dangerous because we don't read or write from this account
+    pub u: AccountInfo<'info>,
+
+    #[account(
+        mut,
+        seeds = [b"config_pda", u.key().as_ref()],
+        bump,
+    )]
+    pub config_pda: Box<Account<'info, Config>>,
+
+    #[account(mut, seeds=[b"reserves", u.key().as_ref()], bump)]
     pub reserves_account: Account<'info, Reserves>,
 }
 

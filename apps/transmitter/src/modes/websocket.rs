@@ -1,3 +1,4 @@
+use anchor_lang::prelude::Pubkey;
 use chainlink_data_streams_report::feed_id::ID;
 // Import the v3 report schema for Crypto streams
 use chainlink_data_streams_report::report::{Report, decode_full_report, v3::ReportDataV3};
@@ -6,11 +7,12 @@ use chainlink_data_streams_sdk::stream::Stream;
 use dotenv::dotenv;
 use std::env;
 use std::error::Error;
+use std::str::FromStr;
 use tracing::{info, warn};
 use tracing_subscriber::fmt::time::UtcTime;
 
 use crate::transmitter::transmitter::Transmitter;
-use crate::utils::config::DEFAULT_FEED_ID;
+use crate::utils::config::{DEFAULT_FEED_ID, U_ADDRESS};
 
 // https://docs.chain.link/data-streams/tutorials/streams-direct/streams-direct-ws-rust
 // #[tokio::main]
@@ -30,6 +32,7 @@ pub async fn run(transmitter: &Transmitter) -> Result<(), Box<dyn Error>> {
     // Get API credentials from environment variables
     let api_key = env::var("API_KEY").expect("API_KEY must be set");
     let api_secret = env::var("API_SECRET").expect("API_SECRET must be set");
+    let u = Pubkey::from_str(U_ADDRESS).expect("Invalid U_ADDRESS");
 
     let mut feed_ids = Vec::new();
     let feed_id = ID::from_hex_str(feed_id_input)?;
@@ -95,7 +98,7 @@ pub async fn run(transmitter: &Transmitter) -> Result<(), Box<dyn Error>> {
                 if response.report.valid_from_timestamp > last_verified_timestamp + 30 {
                     // verify the last report every 30 seconds
                     info!("🌟 Verifying report...");
-                    let tx = transmitter.verify(&response.report.full_report, None).await?;
+                    let tx = transmitter.verify(&response.report.full_report, None, u).await?;
                     info!("🌟 🌟 Signature: {}", tx);
                 }
             }

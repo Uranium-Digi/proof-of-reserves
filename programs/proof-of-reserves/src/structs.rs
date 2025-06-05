@@ -8,6 +8,7 @@ pub struct Config {
     pub authority: Pubkey,
     pub issue_authority: Pubkey,
     pub redeem_authority: Pubkey,
+    pub update_authority: Pubkey,
     pub issuance_fee_rate: u16,
     pub redemption_fee_rate: u16,
     pub padding: [u8; 64],

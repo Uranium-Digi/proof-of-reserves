@@ -31,6 +31,7 @@ pub mod proof_of_reserves {
 
     pub fn initialize(ctx: Context<Initialize>) -> Result<()> {
         ctx.accounts.config_pda.authority = ctx.accounts.signer.key();
+        ctx.accounts.config_pda.update_authority = ctx.accounts.signer.key();
         ctx.accounts.config_pda.issue_authority = ctx.accounts.signer.key();
         ctx.accounts.config_pda.redeem_authority = ctx.accounts.signer.key();
         ctx.accounts.config_pda.issuance_fee_rate = 0;
@@ -64,7 +65,7 @@ pub mod proof_of_reserves {
             ctx.accounts.config_pda.issuance_fee_rate as u64,
         )?;
 
-        // Minting the gross_issue amount of U token to config_pda_u_ata
+        // Minting the gross_issue amount of U token to issuance_wallet_pda_u_ata
         mint_to(
             CpiContext::new_with_signer(
                 ctx.accounts.token_program.to_account_info(),
@@ -82,7 +83,7 @@ pub mod proof_of_reserves {
             gross_issue,
         )?;
 
-        // Transfer the wU token from the issuance wallet pda wrapped ata to the company wallet wrapped ata
+        // Transfer the Issuance Fee (U token) from the issuance wallet pda U ata to the company wallet U ata
         transfer_checked(
             CpiContext::new_with_signer(
                 ctx.accounts.token_program.to_account_info(),
@@ -102,7 +103,7 @@ pub mod proof_of_reserves {
             ctx.accounts.u.decimals,
         )?;
 
-        // Transfer the wU token from the issuance wallet pda wrapped ata to the master wallet wrapped ata
+        // Transfer the U token from the issuance wallet pda wrapped ata to the master wallet U ata
         transfer_checked(
             CpiContext::new_with_signer(
                 ctx.accounts.token_program.to_account_info(),
@@ -132,7 +133,7 @@ pub mod proof_of_reserves {
             ctx.accounts.config_pda.redemption_fee_rate as u64,
         )?;
 
-        // Transfer the wU token from the owner wrapped ata to the redemption wallet pda wrapped ata
+        // Transfer the U token from the signer U ata to the redemption wallet pda U ata
         transfer_checked(
             CpiContext::new(
                 ctx.accounts.token_program.to_account_info(),
@@ -147,7 +148,7 @@ pub mod proof_of_reserves {
             ctx.accounts.u.decimals,
         )?;
 
-        // Transfer the wU token from the redemption wallet pda wrapped ata to the company wallet wrapped ata
+        // Transfer the Redemption Fee (U token) from the redemption wallet pda U ata to the company wallet U ata
         transfer_checked(
             CpiContext::new_with_signer(
                 ctx.accounts.token_program.to_account_info(),
@@ -167,7 +168,7 @@ pub mod proof_of_reserves {
             ctx.accounts.u.decimals,
         )?;
 
-        // Burn the wU from the redemption wallet pda wrapped ata
+        // Burn the U from the redemption wallet pda U ata
         burn(
             CpiContext::new_with_signer(
                 ctx.accounts.token_program.to_account_info(),
@@ -236,7 +237,7 @@ pub mod proof_of_reserves {
         let verifier_account = ctx.accounts.verifier_account.key();
         let access_controller = ctx.accounts.access_controller.key();
         let user = ctx.accounts.user.key();
-        let config_account = ctx.accounts.config_account.key();
+        let config_account = ctx.accounts.verifier_config_account.key();
 
         // Create verification instruction
         let chainlink_ix: Instruction = VerifierInstructions::verify(
@@ -255,7 +256,7 @@ pub mod proof_of_reserves {
                 ctx.accounts.verifier_account.to_account_info(),
                 ctx.accounts.access_controller.to_account_info(),
                 ctx.accounts.user.to_account_info(),
-                ctx.accounts.config_account.to_account_info(),
+                ctx.accounts.verifier_config_account.to_account_info(),
             ],
         )?;
 
@@ -288,7 +289,7 @@ pub mod proof_of_reserves {
             let proof_state = compressed_proof_account.decode()?;
             msg!("Proof State: {:?}", proof_state);
 
-            let reserves_account = &mut ctx.accounts.reserves_account;
+            let reserves_account = &mut ctx.accounts.reserves;
             reserves_account.reserves = proof_state.total_reserves;
 
             msg!("Reserves Account: {:?}", reserves_account);

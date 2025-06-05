@@ -1,4 +1,4 @@
-use std::str::FromStr;
+use std::{rc::Rc, str::FromStr};
 
 use anchor_client::{
     anchor_lang::solana_program,
@@ -193,16 +193,10 @@ async fn test_initialize() {
     let program_id = proof_of_reserves::ID;
     let anchor_wallet = std::env::var(WALLET_KEY).unwrap();
     let signer = read_keypair_file(&anchor_wallet).unwrap();
+    let signer = Rc::new(signer);
 
     // Initialize Chainlink Verifier
     let access_controller = init_chainlink_verifier(&signer).await;
-
-    // Verify the "DEFAULT_HEX_STRING" report and populate the reserves account
-    Transmitter::new(Some(Cluster::Localnet), Some(WALLET_KEY.to_string()))
-        .unwrap()
-        .verify(DEFAULT_HEX_STRING, Some(access_controller))
-        .await
-        .unwrap();
 
     let u = Keypair::new();
 
@@ -270,6 +264,19 @@ async fn test_initialize() {
         &redemption_wallet_pda,
         &u.pubkey(),
         &spl_token_2022::ID,
+    );
+
+    // print all pda and ata
+    println!("config_pda: {:?}", config_pda);
+    println!("issuance_wallet_pda: {:?}", issuance_wallet_pda);
+    println!("issuance_wallet_pda_u_ata: {:?}", issuance_wallet_pda_u_ata);
+    println!("master_wallet_u_ata: {:?}", master_wallet_u_ata);
+    println!("company_wallet_u_ata: {:?}", company_wallet_u_ata);
+    println!("issuance_wallet_pda_u_ata: {:?}", issuance_wallet_pda_u_ata);
+    println!("redemption_wallet_pda: {:?}", redemption_wallet_pda);
+    println!(
+        "redemption_wallet_pda_u_ata: {:?}",
+        redemption_wallet_pda_u_ata
     );
 
     let extension_types = vec![];
@@ -354,12 +361,35 @@ async fn test_initialize() {
                 .unwrap(),
         );
 
-        send_tx(&rpc, ixs, &signer.pubkey(), &[&signer, &u]).await;
+        let tx = send_tx(&rpc, ixs, &signer.pubkey(), &[&signer, &u]).await;
+        rpc.confirm_transaction_with_spinner(
+            &tx,
+            &rpc.get_latest_blockhash().await.unwrap(),
+            CommitmentConfig::finalized(),
+        )
+        .await
+        .unwrap();
     }
+
+    println!("Verify");
+    // Verify the "DEFAULT_HEX_STRING" report and populate the reserves account
+    // This need to be call after initialize
+    let tx = Transmitter::new(Some(Cluster::Localnet), signer.clone())
+        .unwrap()
+        .verify(DEFAULT_HEX_STRING, Some(access_controller), u.pubkey())
+        .await
+        .unwrap();
+    rpc.confirm_transaction_with_spinner(
+        &tx,
+        &rpc.get_latest_blockhash().await.unwrap(),
+        CommitmentConfig::finalized(),
+    )
+    .await
+    .unwrap();
 
     println!("Issue");
     {
-        let reserves_pda = Pubkey::find_program_address(&[b"reserves"], &program_id).0;
+        let reserves_pda = Pubkey::find_program_address(&[b"reserves", u.pubkey().as_ref()], &program_id).0;
 
         println!("reserves_account: {:?}", &reserves_pda);
         let mut ixs = vec![];

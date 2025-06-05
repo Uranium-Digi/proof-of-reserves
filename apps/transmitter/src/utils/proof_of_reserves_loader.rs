@@ -26,18 +26,18 @@ pub fn load_proof_of_reserves_program_id() -> Pubkey {
 pub fn load_proof_of_reserves(
     cluster: Option<Cluster>,
     route_type: RouteType,
-    wallet_path_name: Option<String>,
+    signer: Rc<Keypair>,
 ) -> Result<(Program<Rc<Keypair>>, Pubkey)> {
-    let (client, provider) = get_client_and_provider(cluster, wallet_path_name)?;
+    let (client, provider) = get_client_and_provider(cluster, signer)?;
 
     let program_id = load_proof_of_reserves_program_id();
-    let program: Program<Rc<Keypair>>;
 
-    if route_type == RouteType::Client {
-        program = client.program(program_id).unwrap();
-    } else {
-        program = provider.program(program_id).unwrap();
+    let program: Program<Rc<Keypair>> = match route_type {
+        RouteType::Client => client,
+        RouteType::Provider => provider,
     }
+    .program(program_id)
+    .unwrap();
 
     Ok((program, program_id))
 }
