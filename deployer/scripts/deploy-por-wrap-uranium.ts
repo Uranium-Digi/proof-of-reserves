@@ -54,8 +54,7 @@ async function deployToken(): Promise<PublicKey> {
         'Uranium',
         'U',
         '',
-        'This is a uranium implementation with transfer fees',
-        true, // enable transfer fees
+        'This token is redeemable for uranium.',
         100, // initial supply
     )
     console.log('Token deployed:', tokenMint.toString())

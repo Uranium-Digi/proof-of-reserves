@@ -9,7 +9,6 @@ import {
 import {
     createInitializeMetadataPointerInstruction,
     createInitializeMintInstruction,
-    createInitializeTransferFeeConfigInstruction,
     ExtensionType,
     getMintLen,
     getOrCreateAssociatedTokenAccount,

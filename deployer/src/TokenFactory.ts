@@ -1,5 +1,5 @@
 import { TokenDeployer } from './TokenDeployer'
-import { LAMPORTS_PER_SOL, PublicKey } from '@solana/web3.js'
+import { Keypair, LAMPORTS_PER_SOL, PublicKey } from '@solana/web3.js'
 import Common from './Common'
 import { TokenConfig } from './TokenDeployer'
 
@@ -11,12 +11,12 @@ export class TokenFactory {
     }
 
     async deployToken(
-        name: string = 'Token',
-        symbol: string = 'T',
-        uri: string = 'https://raw.githubusercontent.com/solana-developers/opos-asset/main/assets/CompressedCoil/image.png',
-        description: string = 'This is a token implementation',
+        name: string = 'Lemon Cake',
+        symbol: string = 'LEMON',
+        uri: string = 'https://rhttps://github.com/Uranium-Digi/lemon-cake/blob/main/0978fe9e1d7932debba36c233b4e34c7.jpg',
+        description: string = 'Lemon cakes are Sansas favourite',
         initialSupply: number = 0, // 100 tokens - we will scale this up by LAMPORTS_PER_SOL below.
-        vanityAddress?: Keypair,
+        vanityAddress?: Keypair | null,
     ): Promise<PublicKey> {
         const network = await this.tokenDeployer.common.checkCluster(this.tokenDeployer.common.connection)
         if (network === 'mainnet') {
