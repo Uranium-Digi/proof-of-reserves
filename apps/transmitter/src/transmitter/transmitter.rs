@@ -1,22 +1,20 @@
 use std::str::FromStr;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use anchor_client::solana_sdk::lamports;
 use anchor_client::solana_sdk::native_token::LAMPORTS_PER_SOL;
 use anchor_client::solana_sdk::signature::Signature;
 use anchor_client::Cluster;
 use anchor_client::{solana_sdk::signature::Keypair, Program};
 use anchor_lang::prelude::Pubkey;
 use anyhow::{Context, Result};
-use oracle_updater::program::OracleUpdater;
 
 use std::rc::Rc;
 
-use oracle_updater;
+use proof_of_reserves;
 
 use snap::raw::Encoder;
 
-use crate::utils::oracle_updater_loader::{load_oracle_updater, RouteType};
+use crate::utils::proof_of_reserves_loader::{load_oracle_updater, RouteType};
 
 pub const CHAINLINK_VERIFIER_PROGRAM_ID_DEVNET: &str =
     "Gt9S41PtjR58CbG9JhJ3J6vxesqrNAswbWYbLNTMZA3c";
@@ -82,7 +80,7 @@ impl Transmitter {
             .duration_since(UNIX_EPOCH)
             .unwrap()
             .as_secs();
-        let proof_state_from_tnf = oracle_updater::ProofState {
+        let proof_state_from_tnf = proof_of_reserves::ProofState {
             name: "Uranium Proof of Reserves".to_string(),
             total_reserves: 13 * 10u64.pow(6) * LAMPORTS_PER_SOL,
             total_token: 12 * 10u64.pow(6) * LAMPORTS_PER_SOL,
@@ -91,7 +89,7 @@ impl Transmitter {
             timestamp: time_now as i64,
         };
 
-        let compressed_proof = oracle_updater::CompressedProof {
+        let compressed_proof = proof_of_reserves::CompressedProof {
             compressed_proof: proof_state_from_tnf.encode(&feed_id_array),
         };
 
@@ -128,7 +126,7 @@ impl Transmitter {
 
         println!("🅿️ self.program.id(): {:?}", &self.program.id());
         // let (reserves_account, _) =
-        //     Pubkey::find_program_address(&[b"reserves"], &oracle_updater::ID);
+        //     Pubkey::find_program_address(&[b"reserves"], &proof_of_reserves::ID);
         let (reserves_account, _) =
             Pubkey::find_program_address(&[b"reserves"], &self.program.id());
         println!("reserves_account: {:?}", &reserves_account);
@@ -141,7 +139,7 @@ impl Transmitter {
         let verify_ix = self
             .program
             .request()
-            .accounts(oracle_updater::accounts::ExampleProgramContext {
+            .accounts(proof_of_reserves::accounts::Verify {
                 verifier_account,
                 access_controller,
                 user,
@@ -151,7 +149,7 @@ impl Transmitter {
                 reserves_account,
                 system_program: anchor_client::solana_sdk::system_program::ID,
             })
-            .args(oracle_updater::instruction::Verify {
+            .args(proof_of_reserves::instruction::Verify {
                 signed_report: compressed_report,
                 compressed_proof: compressed_proof.compressed_proof,
             })
@@ -167,11 +165,12 @@ impl Transmitter {
         println!("📍 Instruction: Verify");
         println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
 
-        let compressed_proof_account: oracle_updater::CompressedProof =
+        let compressed_proof_account: proof_of_reserves::CompressedProof =
             self.program.account(compressed_proof_account).await?;
 
         let (proof_state, _) =
-            oracle_updater::ProofState::decode(&compressed_proof_account.compressed_proof).unwrap();
+            proof_of_reserves::ProofState::decode(&compressed_proof_account.compressed_proof)
+                .unwrap();
 
         println!("🧻 Proof State:");
         println!("  Name: {}", proof_state.name);
@@ -181,7 +180,7 @@ impl Transmitter {
         println!("  Ripcord Details: {:?}", proof_state.ripcord_details);
         println!("  Timestamp: {}", proof_state.timestamp);
 
-        let reserves_account: oracle_updater::Reserves =
+        let reserves_account: proof_of_reserves::Reserves =
             self.program.account(reserves_account).await?;
 
         println!("🔶  Reserves Account:");

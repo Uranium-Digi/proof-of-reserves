@@ -1,13 +1,15 @@
 use anchor_lang::prelude::*;
+
 #[error_code]
 pub enum CustomError {
     YouAreNotAdmin,
-    YouAreNotWrapAuthority,
-    YouAreNotUnwrapAuthority,
-    YouAreNotMintAndWrapAuthority,
-    YouAreNotUnwrapAndBurnAuthority,
-    InvalidFee,
+    YouAreNotIssueAuthority,
+    YouAreNotRedeemAuthority,
     InsufficientReserves,
     IssuanceFeeCalculationError,
     RedemptionFeeCalculationError,
+    InvalidReportData,
+    NoReportData,
+    InvalidUtf8String,
+    InvalidHexString,
 }
