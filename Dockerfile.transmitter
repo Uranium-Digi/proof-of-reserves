@@ -1,0 +1,27 @@
+FROM rust:1-slim-bookworm AS base
+WORKDIR /app
+RUN cargo install cargo-chef
+RUN apt-get update && apt-get install -y protobuf-compiler pkg-config libssl-dev build-essential
+
+FROM base AS planner
+COPY . .
+RUN cargo chef prepare --recipe-path recipe.json
+
+FROM base AS builder
+COPY --from=planner /app/recipe.json recipe.json
+RUN cargo chef cook --release --recipe-path recipe.json
+COPY . .
+RUN cargo build --release --bin transmitter
+RUN strip /app/target/release/transmitter
+
+FROM debian:bookworm-slim
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y pkg-config libssl-dev ca-certificates wget
+RUN wget https://certs.godaddy.com/repository/gdig2.crt.pem -O /etc/ssl/certs/gdig2.crt.pem
+RUN wget https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem
+RUN update-ca-certificates --fresh
+
+COPY --from=builder /app/target/release/transmitter .
+
+CMD ["./transmitter"]

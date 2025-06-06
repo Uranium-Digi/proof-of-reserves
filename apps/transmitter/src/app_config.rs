@@ -40,7 +40,7 @@ fn default_access_controller_data_account() -> String {
 }
 
 fn default_chainlink_api_key() -> String {
-    "test-key".to_string()
+    "4ebebf1e-3c03-4bb2-be43-a43e26db0939".to_string()
 }
 
 fn default_chainlink_feed_url() -> String {
@@ -60,7 +60,7 @@ fn default_chainlink_verifier_program_id() -> String {
 }
 
 fn default_access_controller_program_id() -> String {
-    "2k3DsgwBoqrnvXKVvd7jX7aptNxdcRBdcd5HkYsGgbrb".to_string()
+    "EjVftbXwfRZoZDzJ6eHArCqiBiPHBLq5zajRqMiHGH1A".to_string()
 }
 
 fn default_rpc_url() -> String {
