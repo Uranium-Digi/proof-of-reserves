@@ -6,9 +6,14 @@ use anchor_client::{
     Client, Cluster,
 };
 
-use anchor_spl::associated_token::spl_associated_token_account::{
-    self, get_associated_token_address_with_program_id,
-    instruction::{create_associated_token_account, create_associated_token_account_idempotent},
+use anchor_spl::{
+    associated_token::spl_associated_token_account::{
+        self, get_associated_token_address_with_program_id,
+        instruction::{
+            create_associated_token_account, create_associated_token_account_idempotent,
+        },
+    },
+    token::spl_token,
 };
 use hex_literal::hex;
 use solana_client::nonblocking::rpc_client::RpcClient;
@@ -17,6 +22,7 @@ use solana_sdk::{
     instruction::Instruction,
     message::{v0::Message, VersionedMessage},
     native_token::LAMPORTS_PER_SOL,
+    program_pack::Pack,
     signature::{read_keypair_file, Keypair, Signature},
     signers::Signers,
     system_instruction::create_account,
@@ -225,40 +231,34 @@ async fn test_initialize() {
     let config_pda =
         Pubkey::find_program_address(&[b"config_pda", u.pubkey().as_ref()], &program_id).0;
 
-    let signer_ata = get_associated_token_address_with_program_id(
-        &signer.pubkey(),
-        &u.pubkey(),
-        &spl_token_2022::ID,
-    );
+    let signer_ata =
+        get_associated_token_address_with_program_id(&signer.pubkey(), &u.pubkey(), &spl_token::ID);
 
-    let signer_u_ata = get_associated_token_address_with_program_id(
-        &signer.pubkey(),
-        &u.pubkey(),
-        &spl_token_2022::ID,
-    );
+    let signer_u_ata =
+        get_associated_token_address_with_program_id(&signer.pubkey(), &u.pubkey(), &spl_token::ID);
 
     let master_wallet_u_ata = get_associated_token_address_with_program_id(
         &master_wallet.pubkey(),
         &u.pubkey(),
-        &spl_token_2022::ID,
+        &spl_token::ID,
     );
 
     let company_wallet_u_ata = get_associated_token_address_with_program_id(
         &company_wallet.pubkey(),
         &u.pubkey(),
-        &spl_token_2022::ID,
+        &spl_token::ID,
     );
 
     let issuance_wallet_pda_u_ata = get_associated_token_address_with_program_id(
         &issuance_wallet_pda,
         &u.pubkey(),
-        &spl_token_2022::ID,
+        &spl_token::ID,
     );
 
     let redemption_wallet_pda_u_ata = get_associated_token_address_with_program_id(
         &redemption_wallet_pda,
         &u.pubkey(),
-        &spl_token_2022::ID,
+        &spl_token::ID,
     );
 
     // print all pda and ata
@@ -274,11 +274,7 @@ async fn test_initialize() {
         redemption_wallet_pda_u_ata
     );
 
-    let extension_types = vec![];
-    let space = spl_token_2022::extension::ExtensionType::try_calculate_account_len::<
-        spl_token_2022::state::Mint,
-    >(&extension_types)
-    .unwrap();
+    let space = spl_token::state::Mint::LEN;
 
     let rent = rpc
         .get_minimum_balance_for_rent_exemption(space)
@@ -293,14 +289,14 @@ async fn test_initialize() {
                 &u.pubkey(),
                 rent,
                 space as u64,
-                &spl_token_2022::ID,
+                &spl_token::ID,
             ),
-            spl_token_2022::instruction::initialize_mint(
-                &spl_token_2022::ID,
-                &u.pubkey(),      // Mint address
-                &signer.pubkey(), // Mint authority
-                None,             // Freeze authority
-                9,                // Decimals
+            spl_token::instruction::initialize_mint(
+                &spl_token::ID,
+                &u.pubkey(),            // Mint address
+                &signer.pubkey(),       // Mint authority
+                Some(&signer.pubkey()), // Freeze authority
+                9,                      // Decimals
             )
             .unwrap(),
         ];
@@ -312,7 +308,7 @@ async fn test_initialize() {
                     signer: signer.pubkey(),
                     u: u.pubkey(),
                     config_pda,
-                    token_program: spl_token_2022::ID,
+                    token_program: spl_token::ID,
                     associated_token_program: spl_associated_token_account::ID,
                     system_program: solana_program::system_program::ID,
                 })
@@ -327,11 +323,11 @@ async fn test_initialize() {
             &signer.pubkey(), // ata rent payer
             &signer.pubkey(), // owner
             &u.pubkey(),
-            &spl_token_2022::ID,
+            &spl_token::ID,
         ));
         ixs.push(
-            spl_token_2022::instruction::mint_to(
-                &spl_token_2022::ID,
+            spl_token::instruction::mint_to(
+                &spl_token::ID,
                 &u.pubkey(),
                 &signer_ata,      // ata
                 &signer.pubkey(), // mint authority
@@ -349,7 +345,7 @@ async fn test_initialize() {
                     signer: signer.pubkey(),
                     config_pda,
                     u: u.pubkey(),
-                    token_program: spl_token_2022::ID,
+                    token_program: spl_token::ID,
                 })
                 .args(proof_of_reserves::instruction::DepositMintAuthority {})
                 .instructions()
@@ -403,7 +399,7 @@ async fn test_initialize() {
             &signer.pubkey(),
             &&issuance_wallet_pda,
             &u.pubkey(),
-            &spl_token_2022::ID,
+            &spl_token::ID,
         ));
 
         // create company_wallet_wrapped_ata
@@ -411,7 +407,7 @@ async fn test_initialize() {
             &signer.pubkey(),
             &company_wallet.pubkey(),
             &u.pubkey(),
-            &spl_token_2022::ID,
+            &spl_token::ID,
         ));
 
         // create master_wallet_wrapped_ata
@@ -419,7 +415,7 @@ async fn test_initialize() {
             &signer.pubkey(),
             &master_wallet.pubkey(),
             &u.pubkey(),
-            &spl_token_2022::ID,
+            &spl_token::ID,
         ));
 
         ixs.append(
@@ -435,7 +431,7 @@ async fn test_initialize() {
                     master_wallet_u_ata,
                     company_wallet: company_wallet.pubkey(),
                     company_wallet_u_ata,
-                    token_program: spl_token_2022::ID,
+                    token_program: spl_token::ID,
                     associated_token_program: spl_associated_token_account::ID,
                     system_program: solana_program::system_program::ID,
                     reserves_pda,
@@ -466,7 +462,7 @@ async fn test_initialize() {
             &signer.pubkey(),
             &redemption_wallet_pda,
             &u.pubkey(),
-            &spl_token_2022::ID,
+            &spl_token::ID,
         ));
 
         ixs.append(
@@ -481,7 +477,7 @@ async fn test_initialize() {
                     redemption_wallet_pda_u_ata,
                     company_wallet: company_wallet.pubkey(),
                     company_wallet_u_ata,
-                    token_program: spl_token_2022::ID,
+                    token_program: spl_token::ID,
                     associated_token_program: spl_associated_token_account::ID,
                     system_program: solana_program::system_program::ID,
                 })
