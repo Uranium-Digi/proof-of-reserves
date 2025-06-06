@@ -1,4 +1,4 @@
-use std::{rc::Rc, str::FromStr};
+use std::{str::FromStr, sync::Arc};
 
 use anchor_client::{
     anchor_lang::solana_program,
@@ -193,10 +193,10 @@ async fn test_initialize() {
     let program_id = proof_of_reserves::ID;
     let anchor_wallet = std::env::var(WALLET_KEY).unwrap();
     let signer = read_keypair_file(&anchor_wallet).unwrap();
-    let signer = Rc::new(signer);
+    let signer = Arc::new(signer);
 
     // Initialize Chainlink Verifier
-    let access_controller = init_chainlink_verifier(&signer).await;
+    let access_controller_data_account = init_chainlink_verifier(&signer).await;
 
     let u = Keypair::new();
 
@@ -374,11 +374,19 @@ async fn test_initialize() {
     println!("Verify");
     // Verify the "DEFAULT_HEX_STRING" report and populate the reserves account
     // This need to be call after initialize
-    let tx = Transmitter::new(Some(Cluster::Localnet), signer.clone())
-        .unwrap()
-        .verify(DEFAULT_HEX_STRING, Some(access_controller), u.pubkey())
-        .await
-        .unwrap();
+    let tx = Transmitter::new(
+        Cluster::Localnet,
+        signer.clone(),
+        program_id,
+        u.pubkey(),
+        verifier::ID,
+        access_controller::ID,
+        access_controller_data_account,
+    )
+    .unwrap()
+    .verify(DEFAULT_HEX_STRING)
+    .await
+    .unwrap();
     rpc.confirm_transaction_with_spinner(
         &tx,
         &rpc.get_latest_blockhash().await.unwrap(),
@@ -389,7 +397,8 @@ async fn test_initialize() {
 
     println!("Issue");
     {
-        let reserves_pda = Pubkey::find_program_address(&[b"reserves", u.pubkey().as_ref()], &program_id).0;
+        let reserves_pda =
+            Pubkey::find_program_address(&[b"reserves", u.pubkey().as_ref()], &program_id).0;
 
         println!("reserves_account: {:?}", &reserves_pda);
         let mut ixs = vec![];

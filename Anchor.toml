@@ -13,8 +13,8 @@ url = "https://api.apr.dev"
 
 [provider]
 cluster = "localnet"
-wallet = "~/Documents/proof-of-reserves/.secrets/tokenAuthority.json"
-#wallet = "~/projects/ud/proof-of-reserves/.secrets/tokenAuthority.json"
+#wallet = "~/Documents/proof-of-reserves/.secrets/tokenAuthority.json"
+wallet = "~/projects/ud/proof-of-reserves/.secrets/tokenAuthority.json"
 
 [scripts]
 test = "cargo test"

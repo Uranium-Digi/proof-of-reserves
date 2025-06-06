@@ -5,17 +5,23 @@ edition = "2021"
 
 [dependencies]
 tokio = { version = "1.4", features = ["full"] }
+tracing = "0.1.37"
+tracing-subscriber = { version = "0.3.17", features = ["env-filter"] }
 hex = "0.4"
 
-proof-of-reserves = { workspace = true }
-chainlink-data-streams-sdk = { workspace = true }
-chainlink-data-streams-report = { workspace = true }
-dotenv = "0.15"
-
-tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["time"] }
-anchor-client = { workspace = true, features = ["async"] }
-anchor-lang = { workspace = true }
+dotenvy = "0.15.7"
+serde = { version = "1.0", features = ["derive"] }
 anyhow = "1.0.93"
 serde_json = "1.0"
 snap = "1"
+
+aws-sdk-secretsmanager = "1.42.0"
+aws-config = "1.5.5"
+aws-sdk-kms = "1.65.0"
+config = "0.14.1"
+
+anchor-client = { workspace = true, features = ["async"] }
+anchor-lang = { workspace = true }
+proof-of-reserves = { workspace = true }
+chainlink-data-streams-sdk = { workspace = true }
+chainlink-data-streams-report = { workspace = true }
