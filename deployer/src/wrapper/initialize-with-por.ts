@@ -1,6 +1,6 @@
 import { readFile } from 'fs/promises'
 import * as anchor from '@coral-xyz/anchor'
-import { TOKEN_2022_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID, getAssociatedTokenAddress } from '@solana/spl-token'
+import { TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID, getAssociatedTokenAddress } from '@solana/spl-token'
 import 'dotenv/config'
 import { SystemProgram } from '@solana/web3.js'
 import { anchorConnection } from '../config'
@@ -71,7 +71,7 @@ export async function initializeWrappedTokenWithPoR(idl: any, tokenAddress: stri
         mint,
         configPDA,
         true, // allowOwnerOffCurve
-        TOKEN_2022_PROGRAM_ID,
+        TOKEN_PROGRAM_ID,
         ASSOCIATED_TOKEN_PROGRAM_ID,
     )
     console.log('uraniumATA:', uraniumATA.toBase58())
@@ -91,7 +91,7 @@ export async function initializeWrappedTokenWithPoR(idl: any, tokenAddress: stri
             wrappedMint: wrappedMintPDA,
             mint_ata: uraniumATA,
             fee_rebate_reserve: feeRebateReservePDA,
-            token_program: TOKEN_2022_PROGRAM_ID,
+            token_program: TOKEN_PROGRAM_ID,
             associated_token_program: ASSOCIATED_TOKEN_PROGRAM_ID,
             system_program: SystemProgram.programId,
         })
@@ -102,7 +102,7 @@ export async function initializeWrappedTokenWithPoR(idl: any, tokenAddress: stri
             signer: wallet.publicKey,
             config: configPDA,
             mint: mint,
-            token_program: TOKEN_2022_PROGRAM_ID,
+            token_program: TOKEN_PROGRAM_ID,
         })
         .signers([wallet.payer])
         .instruction()

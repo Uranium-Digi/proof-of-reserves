@@ -1,4 +1,6 @@
 import * as anchor from '@coral-xyz/anchor'
+import { Umi } from '@metaplex-foundation/umi'
+import { createUmi } from '@metaplex-foundation/umi-bundle-defaults'
 
 import { Connection, Keypair, PublicKey } from '@solana/web3.js'
 
@@ -6,18 +8,20 @@ export default class Common {
     connection: Connection
     provider: anchor.AnchorProvider
     fundingWallet: anchor.Wallet // this cannot be deleted because it is used for the anchorProvider
+    umi: Umi
     // Define the genesis hashes as constants
     readonly TESTNET_GENESIS_HASH = '4uhcVJyU9pJkvQyS88uRDiswHXSCkY3zQawwpjk2NsNY' // Testnet genesis hash
     readonly DEVNET_GENESIS_HASH = 'EtWTRABZaYqkW7QKBY59fHz9rGh5L7oAcyt8o3MiMJie' // Devnet genesis hash
     readonly MAINNET_GENESIS_HASH = '5eykt4UsFv8P8NJdTREpY1vzqKqZKvdpKuc147dw2N9d'
 
-    constructor(connection: anchor.web3.Connection, fundingWalletKP: Keypair) {
+    constructor(connection: anchor.web3.Connection, umi: Umi, fundingWalletKP: Keypair) {
         this.connection = connection
         this.fundingWallet = new anchor.Wallet(fundingWalletKP)
 
         const provider = new anchor.AnchorProvider(this.connection, this.fundingWallet, {})
         anchor.setProvider(provider)
 
+        this.umi = umi
         this.provider = provider
     }
 

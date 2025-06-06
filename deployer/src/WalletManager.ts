@@ -4,6 +4,7 @@ import path from 'path'
 import { DIRECTORIES } from './config'
 
 import { Keypair, PublicKey } from '@solana/web3.js'
+import { createSignerFromKeypair, KeypairSigner, signerIdentity } from '@metaplex-foundation/umi'
 
 export default class WalletManager {
     constructor() {}
@@ -38,4 +39,15 @@ export default class WalletManager {
         }
         return this.loadWalletFromFile(walletPath)
     }
+    // static async getFundingWalletUmi(): Promise<KeypairSigner> {
+    //     // https://developers.metaplex.com/umi/getting-started#connecting-a-wallet
+    //     const walletPath = DIRECTORIES.FUNDING_WALLET_FILE
+    //     const filePath = path.join(process.cwd(), walletPath)
+    //     const secretKey = JSON.parse(await fs.readFile(filePath, 'utf-8'))
+
+    //     let keypair = umi.eddsa.createKeypairFromSecretKey(new Uint8Array(secretKey))
+    //     const signer = createSignerFromKeypair(umi, keypair)
+
+    //     return signer
+    // }
 }

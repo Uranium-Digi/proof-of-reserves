@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { TokenDeployer } from './TokenDeployer'
 import { Keypair, LAMPORTS_PER_SOL, PublicKey } from '@solana/web3.js'
 import Common from './Common'
@@ -11,10 +12,10 @@ export class TokenFactory {
     }
 
     async deployToken(
-        name: string = 'Lemon Cake',
-        symbol: string = 'LEMON',
-        uri: string = 'https://rhttps://github.com/Uranium-Digi/lemon-cake/blob/main/0978fe9e1d7932debba36c233b4e34c7.jpg',
-        description: string = 'Lemon cakes are Sansas favourite',
+        name: string = 'Uranium',
+        symbol: string = 'U',
+        uri: string = 'https://raw.githubusercontent.com/solana-developers/opos-asset/main/assets/CompressedCoil/image.png',
+        description: string = 'This is a Uranium token.',
         initialSupply: number = 0, // 100 tokens - we will scale this up by LAMPORTS_PER_SOL below.
         vanityAddress?: Keypair | null,
     ): Promise<PublicKey> {
@@ -26,7 +27,7 @@ export class TokenFactory {
         const config: TokenConfig = {
             name: name,
             symbol: symbol.toUpperCase(),
-            uri: uri, // No image
+            imageUri: uri, // No image
             description: description,
             decimals: 9,
             initialSupply: BigInt(initialSupply * LAMPORTS_PER_SOL),

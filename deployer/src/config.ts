@@ -2,7 +2,12 @@ import path from 'path'
 import { Connection, PublicKey } from '@solana/web3.js'
 import * as dotenv from 'dotenv'
 import * as anchor from '@coral-xyz/anchor'
+import * as fs from 'fs'
 import WalletManager from './WalletManager'
+import { createUmi } from '@metaplex-foundation/umi-bundle-defaults'
+import { mplTokenMetadata } from '@metaplex-foundation/mpl-token-metadata'
+import { createSignerFromKeypair, signerIdentity } from '@metaplex-foundation/umi'
+import { irysUploader } from '@metaplex-foundation/umi-uploader-irys'
 
 // Load environment variables from .env file
 dotenv.config({ path: path.resolve(__dirname, '../../.env') })
@@ -26,6 +31,21 @@ export const RPC_URL =
 
 export const connection = new Connection(RPC_URL, 'confirmed')
 export const anchorConnection = new anchor.web3.Connection(RPC_URL)
+
+export const setUpUmi = async () => {
+    console.log('Setting up UMI: RPC_URL', RPC_URL)
+    // https://developers.metaplex.com/umi/getting-started#connecting-a-wallet
+    const umi = createUmi(RPC_URL).use(mplTokenMetadata()).use(irysUploader())
+
+    const tokenAuthorityPath = DIRECTORIES.TOKEN_AUTHORITY_FILE
+    const filePath = path.join(process.cwd(), tokenAuthorityPath)
+    const fileContent = await fs.promises.readFile(filePath, 'utf-8')
+    const secretKey = JSON.parse(fileContent)
+    let keypair = umi.eddsa.createKeypairFromSecretKey(new Uint8Array(secretKey))
+    const signer = createSignerFromKeypair(umi, keypair)
+    umi.use(signerIdentity(signer))
+    return umi
+}
 
 // Directory paths
 export const DIRECTORIES = {
