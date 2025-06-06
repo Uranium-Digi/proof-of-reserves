@@ -14,7 +14,7 @@ dotenv.config({ path: path.resolve(__dirname, '../../.env') })
 
 // Program IDs
 export const WRAP_TOKEN_PROGRAM_ID = '2kg6WJrBjEhqPyWPdx3ct2KovhWD3hGoAihhwNo4XigW'
-export const TOKEN_ADDRESS = '8QHMLm4TchmvMNrtaF1rhyiPNn62o1boJd4WHvfZ69kx'
+export const TOKEN_ADDRESS = 'CAKE1GCTDnRg6zb7zyzLu69HxkW8ZJBt9Fx8ENGSS8KF'
 
 // Connection
 export const NETWORK_USED: string = process.env.NETWORK_USED || 'devnet'
@@ -32,14 +32,14 @@ export const RPC_URL =
 export const connection = new Connection(RPC_URL, 'confirmed')
 export const anchorConnection = new anchor.web3.Connection(RPC_URL)
 
-export const setUpUmi = async () => {
+export const setUpUmi = () => {
     console.log('Setting up UMI: RPC_URL', RPC_URL)
     // https://developers.metaplex.com/umi/getting-started#connecting-a-wallet
     const umi = createUmi(RPC_URL).use(mplTokenMetadata()).use(irysUploader())
 
     const tokenAuthorityPath = DIRECTORIES.TOKEN_AUTHORITY_FILE
     const filePath = path.join(process.cwd(), tokenAuthorityPath)
-    const fileContent = await fs.promises.readFile(filePath, 'utf-8')
+    const fileContent = fs.readFileSync(filePath, 'utf-8')
     const secretKey = JSON.parse(fileContent)
     let keypair = umi.eddsa.createKeypairFromSecretKey(new Uint8Array(secretKey))
     const signer = createSignerFromKeypair(umi, keypair)
@@ -63,10 +63,10 @@ export const setUpAnchorProvider = async () => {
     anchor.setProvider(provider)
     return provider
 }
-export const wrapUraniumProgram = async (wrapUraniumIDL: any): Promise<anchor.Program> => {
+export const proofOfReservesProgram = async (proofOfReservesIdl: any): Promise<anchor.Program> => {
     const provider = await setUpAnchorProvider()
-    const programWrapUranium = new anchor.Program(wrapUraniumIDL as any, provider)
-    return programWrapUranium
+    const programProofOfReserves = new anchor.Program(proofOfReservesIdl as any, provider)
+    return programProofOfReserves
 }
 
 export const uraniumToken = async (uraniumTokenAddress: string) => {

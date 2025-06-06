@@ -1,8 +1,8 @@
+import * as path from 'path'
 import fs from 'fs/promises'
-import path from 'path'
 
 import { DIRECTORIES } from './config'
-
+const { execSync } = require('child_process')
 import { Keypair, PublicKey } from '@solana/web3.js'
 import { createSignerFromKeypair, KeypairSigner, signerIdentity } from '@metaplex-foundation/umi'
 
@@ -50,4 +50,42 @@ export default class WalletManager {
 
     //     return signer
     // }
+}
+
+interface VanityOptions {
+    startsWith?: string
+    endsWith?: string
+    startsAndEndsWith?: { prefix: string; suffix: string }
+    count: number
+    ignoreCase?: boolean
+}
+
+export const generateVanityAddresses = async (options: VanityOptions) => {
+    const vanityDir = path.resolve(__dirname, '..', '.vanity')
+    await fs.mkdir(vanityDir, { recursive: true })
+
+    console.log('vanityDir', vanityDir)
+
+    let command = 'solana-keygen grind'
+
+    // Add required count parameter
+    if (options.startsWith) {
+        command += ` --starts-with ${options.startsWith}:${options.count}`
+    } else if (options.endsWith) {
+        command += ` --ends-with ${options.endsWith}:${options.count}`
+    } else if (options.startsAndEndsWith) {
+        command += ` --starts-and-ends-with ${options.startsAndEndsWith.prefix}:${options.startsAndEndsWith.suffix}:${options.count}`
+    } else {
+        throw new Error('Must specify either startsWith, endsWith, or startsAndEndsWith')
+    }
+
+    // Add optional parameters
+    if (options.ignoreCase) command += ' --ignore-case'
+
+    console.log(`Running command: ${command}`)
+    const addresses: Keypair[] = []
+    const output = execSync(command, {
+        encoding: 'utf-8',
+        cwd: vanityDir,
+    })
 }

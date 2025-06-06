@@ -3,33 +3,38 @@ import {
     PublicKey,
     SystemProgram,
     Transaction,
-    LAMPORTS_PER_SOL,
     sendAndConfirmTransaction,
+    LAMPORTS_PER_SOL,
 } from '@solana/web3.js'
-
-import { createUmi } from '@metaplex-foundation/umi-bundle-defaults'
-import { mplTokenMetadata } from '@metaplex-foundation/mpl-token-metadata'
-
 import {
-    TOKEN_PROGRAM_ID,
-    MINT_SIZE,
-    getMinimumBalanceForRentExemptMint,
+    createInitializeMetadataPointerInstruction,
     createInitializeMintInstruction,
-    createMint,
+    createInitializeTransferFeeConfigInstruction,
+    ExtensionType,
+    getMintLen,
     getOrCreateAssociatedTokenAccount,
+    TOKEN_2022_PROGRAM_ID,
+    LENGTH_SIZE,
+    TYPE_SIZE,
     mintTo,
 } from '@solana/spl-token'
+import { createInitializeInstruction, pack, TokenMetadata } from '@solana/spl-token-metadata'
 import { ASSOCIATED_PROGRAM_ID } from '@coral-xyz/anchor/dist/cjs/utils/token'
 import Common from './Common'
 import WalletManager from './WalletManager'
+
 export interface TokenConfig {
     name: string
     symbol: string
-    imageUri: string
-    description: string
+    uri: string
+    description?: string
     decimals: number
     initialSupply: bigint
-    vanityAddress?: Keypair | undefined
+    vanityAddress?: Keypair
+    feeConfig: {
+        feeBasisPoints: number
+        maxFee: bigint
+    }
 }
 
 export class TokenDeployer {
@@ -67,7 +72,7 @@ export class TokenDeployer {
         return signature
     }
 
-    async deployToken(config: TokenConfig) {
+    async deployToken(config: TokenConfig): Promise<PublicKey> {
         // Request SOL airdrop before deployment if needed
         try {
             await this.requestSolAirdrop()
@@ -82,49 +87,58 @@ export class TokenDeployer {
         const payer = await WalletManager.getFundingWallet()
         const tokenAuthority = await WalletManager.getTokenAuthority()
 
-        const mintAddress = await createMint(
-            this.common.connection, // connection: Connection,
-            payer, // payer: Signer,
-            tokenAuthority.publicKey, // mintAuthority: PublicKey,
-            tokenAuthority.publicKey, // freezeAuthority: PublicKey | null,
-            9, // decimals: number,
-            mintKeypair, // keypair = Keypair.generate(),
-        )
-
-        // --- Token metadata JSON file ---
-        // https://developers.metaplex.com/guides/javascript/how-to-create-a-solana-token
-        const METADATA_PROGRAM_ID = new PublicKey('metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s')
-
-        const metadata: Data = {
+        const metadata: TokenMetadata = {
+            mint,
             name: config.name,
             symbol: config.symbol,
-            uri: config.imageUri,
-            sellerFeeBasisPoints: 0,
-            creators: [],
+            uri: config.uri,
+            additionalMetadata: config.description ? [['description', config.description]] : [],
         }
-        const metadataPda = PublicKey.findProgramAddressSync(
-            [Buffer.from('metadata'), METADATA_PROGRAM_ID.toBuffer(), mintKeypair.publicKey.toBuffer()],
-            METADATA_PROGRAM_ID,
-        )[0]
 
-        console.log('metadataPda:', metadataPda)
+        const metadataLen = TYPE_SIZE + LENGTH_SIZE + pack(metadata).length
+        const extensions = [ExtensionType.MetadataPointer]
+
+        if (config.feeConfig) {
+            extensions.push(ExtensionType.TransferFeeConfig)
+        }
+
+        const mintLen = getMintLen(extensions)
+        const mintLamports = await this.common.connection.getMinimumBalanceForRentExemption(mintLen + metadataLen)
 
         const tx = new Transaction().add(
-            createCreateMetadataAccountInstruction(
-                {
-                    metadata: metadataPda,
-                    mint: mintKeypair.publicKey,
-                    mintAuthority: tokenAuthority.publicKey,
-                    payer: payer.publicKey,
-                    updateAuthority: tokenAuthority.publicKey,
-                },
-                {
-                    createMetadataAccountArgs: {
-                        data: metadata,
-                        isMutable: true,
-                    },
-                },
+            SystemProgram.createAccount({
+                fromPubkey: payer.publicKey,
+                newAccountPubkey: mint,
+                space: mintLen,
+                lamports: mintLamports,
+                programId: TOKEN_2022_PROGRAM_ID,
+            }),
+            createInitializeMetadataPointerInstruction(mint, payer.publicKey, mint, TOKEN_2022_PROGRAM_ID),
+            createInitializeTransferFeeConfigInstruction(
+                mint,
+                tokenAuthority.publicKey,
+                tokenAuthority.publicKey,
+                config.feeConfig.feeBasisPoints,
+                config.feeConfig.maxFee,
+                TOKEN_2022_PROGRAM_ID,
             ),
+            createInitializeMintInstruction(
+                mint,
+                config.decimals,
+                tokenAuthority.publicKey,
+                null,
+                TOKEN_2022_PROGRAM_ID,
+            ),
+            createInitializeInstruction({
+                programId: TOKEN_2022_PROGRAM_ID,
+                mint,
+                metadata: mint,
+                name: metadata.name,
+                symbol: metadata.symbol,
+                uri: metadata.uri,
+                mintAuthority: tokenAuthority.publicKey,
+                updateAuthority: tokenAuthority.publicKey,
+            }),
         )
 
         await sendAndConfirmTransaction(this.common.connection, tx, [payer, tokenAuthority, mintKeypair], {
@@ -140,7 +154,7 @@ export class TokenDeployer {
                 false,
                 'confirmed',
                 undefined,
-                TOKEN_PROGRAM_ID,
+                TOKEN_2022_PROGRAM_ID,
                 ASSOCIATED_PROGRAM_ID,
             )
 
@@ -153,7 +167,7 @@ export class TokenDeployer {
                 config.initialSupply,
                 [],
                 undefined,
-                TOKEN_PROGRAM_ID,
+                TOKEN_2022_PROGRAM_ID,
             )
 
             console.log(`Minted ${config.initialSupply.toString()} tokens to ${tokenAccount.address.toString()}`)
