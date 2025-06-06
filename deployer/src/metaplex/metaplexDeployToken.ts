@@ -1,5 +1,9 @@
 // https://developers.metaplex.com/guides/javascript/how-to-create-a-solana-token
-
+import {
+    fetchMetadataFromSeeds,
+    findMetadataPda,
+    updateMetadataAccountV2,
+} from '@metaplex-foundation/mpl-token-metadata'
 import { createFungible } from '@metaplex-foundation/mpl-token-metadata'
 import {
     createTokenIfMissing,
@@ -7,7 +11,7 @@ import {
     getSplAssociatedTokenProgramId,
     mintTokensTo,
 } from '@metaplex-foundation/mpl-toolbox'
-import { generateSigner, percentAmount, KeypairSigner, PublicKey } from '@metaplex-foundation/umi'
+import { generateSigner, percentAmount, KeypairSigner, PublicKey, publicKey } from '@metaplex-foundation/umi'
 
 import { base58 } from '@metaplex-foundation/umi/serializers'
 import { setUpUmi } from '../config'
@@ -27,7 +31,7 @@ const createTokenConfig = (
     symbol: string,
     description: string,
     imageUri: string,
-    initialSupply: bigint,
+    initialSupply?: bigint,
     vanityAddress?: KeypairSigner | undefined,
 ) => {
     const tokenConfig: TokenConfig = {
@@ -36,11 +40,13 @@ const createTokenConfig = (
         description: description,
         imageUri: imageUri,
         decimals: 9,
-        initialSupply: initialSupply,
+        initialSupply: initialSupply || BigInt(0),
         vanityAddress: vanityAddress,
     }
     return tokenConfig
 }
+
+// We need this to conform to this https://docs.solscan.io/integration/update-token-details
 export const createAndMintTokensViaMetaplex = async (
     name: string = 'Lemon Cake',
     symbol: string = 'LEMON',
@@ -127,4 +133,52 @@ export const createAndMintTokensViaMetaplex = async (
     console.log('View Token on Solscan')
     console.log(`https://solscan.io/address/${mintSigner.publicKey}?cluster=devnet`)
     return mintSigner.publicKey
+}
+
+export const changeMetadata = async (
+    tokenAddress: string,
+    name: string = 'Lemon Cake',
+    symbol: string = 'LEMON',
+    description: string = 'This is a lemon cake.',
+    imageUri: string = 'https://raw.githubusercontent.com/Uranium-Digi/lemon-cake/refs/heads/main/0978fe9e1d7932debba36c233b4e34c7.jpg',
+) => {
+    // https://developers.metaplex.com/guides/javascript/how-to-create-a-solana-token
+    const umi = await setUpUmi()
+    console.log('🔑 Umi signer (must be updateAuthority):', umi.identity.publicKey.toString())
+
+    const tokenConfig = createTokenConfig(name, symbol, description, imageUri)
+    const mint = publicKey(tokenAddress)
+
+    const metadata = {
+        name: tokenConfig.name,
+        symbol: tokenConfig.symbol,
+        description: tokenConfig.description,
+        image: tokenConfig.imageUri,
+    }
+
+    const metadataUri = await umi.uploader.uploadJson(metadata)
+    console.log('metadataUri', metadataUri)
+
+    // Fetch existing on-chain metadata to preserve creators
+    const existingMetadata = await fetchMetadataFromSeeds(umi, { mint })
+    console.log('🧾 Existing metadata:', existingMetadata)
+    console.log('🧾 Existing verified creators:', existingMetadata.creators)
+
+    const metadataPda = findMetadataPda(umi, { mint: mint }) // use your token’s mint address
+    const tx = await updateMetadataAccountV2(umi, {
+        metadata: metadataPda,
+        updateAuthority: umi.identity, // must be current update authority
+        data: {
+            name: metadata.name,
+            symbol: metadata.symbol,
+            uri: metadataUri, // ← key field
+            sellerFeeBasisPoints: 0,
+            creators: existingMetadata.creators,
+            collection: null,
+            uses: null,
+        },
+        primarySaleHappened: null,
+        isMutable: true, // keep it mutable or freeze it (false)
+    }).sendAndConfirm(umi)
+    console.log('tx.signature', tx.signature)
 }

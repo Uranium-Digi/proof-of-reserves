@@ -17,7 +17,7 @@ import {
     mintTo,
 } from '@solana/spl-token'
 import { anchorConnection } from '../src/config'
-import { createAndMintTokensViaMetaplex } from '../src/metaplex/metaplexDeployToken'
+import { changeMetadata, createAndMintTokensViaMetaplex } from '../src/metaplex/metaplexDeployToken'
 
 // Load environment variables
 // NOTHING in the env should ever be modified.
