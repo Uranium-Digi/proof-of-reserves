@@ -1,41 +1,64 @@
 mod modes;
+use anchor_client::solana_sdk::signature::Keypair;
 use anchor_client::Cluster;
-use modes::directapi;
+use anchor_lang::prelude::Pubkey;
+use app_config::AppConfig;
 use modes::websocket;
 
+use tracing::info;
 use transmitter::transmitter::Transmitter;
-use utils::wallet_loader::load_funding_wallet;
 
+pub mod app_config;
 pub mod transmitter;
 pub mod utils;
 
-// use crate::verifier::loader::OracleUpdaterProgram;
-use anchor_client::solana_sdk::{commitment_config::CommitmentConfig, signer::Signer};
-
-use std::env;
-use std::rc::Rc;
-
-const DEFAULT_FEED_ID: &str = "0x000359843a543ee2fe414dc14c7e7920ef10f4372990b79d6361cdc0dd1ba782";
+use std::str::FromStr;
+use std::sync::Arc;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    dotenv::dotenv().ok(); // loads .env file automatically
+    // Initialize logging with UTC timestamps
+    tracing_subscriber::fmt()
+        .with_max_level(tracing::Level::INFO)
+        .init();
+    // load app config
+    let app_config = AppConfig::new().await;
 
-    // let report = directapi::run().await?;
-    let cluster = Some(Cluster::Devnet);
-    let signer = load_funding_wallet(None)?;
-    let transmitter = Transmitter::new(cluster, Rc::new(signer))?;
-    // let report = websocket::run();
+    // prepare signer, program ids and cluster
+    let cluster = Cluster::Custom(
+        app_config.rpc_url.clone(),                         // https url
+        app_config.clone().rpc_url.replace("https", "wss"), // wss url - needed for websocket
+    );
+    let signer = Keypair::from_base58_string(&app_config.signer_private_key);
+    let proof_of_reserves_program_id =
+        Pubkey::from_str(&app_config.program_id).expect("Invalid Proof of Reserves Program ID");
+    let chainlink_verifier_program_id = Pubkey::from_str(&app_config.chainlink_verifier_program_id)
+        .expect("Invalid Chainlink Verifier Program ID");
+    let access_controller_program_id = Pubkey::from_str(&app_config.access_controller_program_id)
+        .expect("Invalid Access Controller Program ID");
+    let u_address = Pubkey::from_str(&app_config.u_address).expect("Invalid U Address");
+    let access_controller_data_account = Pubkey::from_str(&app_config.access_controller_data_account).expect("Invalid Access Controller Data Account");
 
-    websocket::run(&transmitter).await?;
+    // create transmitter
+    let transmitter = Transmitter::new(
+        cluster,
+        Arc::new(signer),
+        proof_of_reserves_program_id,
+        u_address,
+        chainlink_verifier_program_id,
+        access_controller_program_id,
+        access_controller_data_account,
+    )?;
 
-    // let wallet = load_funding_wallet()?;
-    // println!("🔑 Loaded wallet pubkey: {}", wallet.pubkey());
+    // run
+    let handle = websocket::run(&app_config, transmitter).await?;
 
-    // let transmitter = Transmitter::new()?;
-
-    // transmitter.verify(&report.full_report).await?;
-
+    tokio::select! {
+        _ = tokio::signal::ctrl_c() => {
+            info!("Received shutdown signal");
+            handle.abort();
+        }
+    }
     Ok(())
 }
 // async fn main() -> Result<(), Box<dyn std::error::Error>> {
