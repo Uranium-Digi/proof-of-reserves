@@ -14,7 +14,7 @@ use proof_of_reserves;
 
 use snap::raw::Encoder;
 
-use crate::utils::proof_of_reserves_loader::{load_oracle_updater, RouteType};
+use crate::utils::proof_of_reserves_loader::{load_proof_of_reserves, RouteType};
 
 pub const CHAINLINK_VERIFIER_PROGRAM_ID_DEVNET: &str =
     "Gt9S41PtjR58CbG9JhJ3J6vxesqrNAswbWYbLNTMZA3c";
@@ -29,11 +29,9 @@ pub struct Transmitter {
 }
 
 impl Transmitter {
-    pub fn new(cluster: Option<Cluster>, wallet_path_name: Option<String>) -> Result<Self> {
+    pub fn new(cluster: Option<Cluster>, signer: Rc<Keypair>) -> Result<Self> {
         let (program, program_id) =
-            load_oracle_updater(cluster, RouteType::default(), wallet_path_name)?;
-
-        println!("program_id: {}", program_id);
+            load_proof_of_reserves(cluster, RouteType::default(), signer)?;
 
         Ok(Self {
             program,
@@ -70,6 +68,7 @@ impl Transmitter {
         &self,
         full_report: &str,
         access_controller: Option<Pubkey>,
+        u: Pubkey,
     ) -> Result<Signature> {
         let (compressed_report, feed_id) = self.parse_and_compress_hex_report(full_report)?;
         let feed_id_array: [u8; 32] = feed_id
@@ -121,14 +120,14 @@ impl Transmitter {
         println!("program.id: {:?}", &self.program.id());
 
         let (compressed_proof_account, _) =
-            Pubkey::find_program_address(&[b"proof_v4"], &self.program.id());
+            Pubkey::find_program_address(&[b"proof_v4", u.as_ref()], &self.program.id());
         println!("compressed_proof_account: {:?}", &compressed_proof_account);
 
         println!("🅿️ self.program.id(): {:?}", &self.program.id());
         // let (reserves_account, _) =
         //     Pubkey::find_program_address(&[b"reserves"], &proof_of_reserves::ID);
         let (reserves_account, _) =
-            Pubkey::find_program_address(&[b"reserves"], &self.program.id());
+            Pubkey::find_program_address(&[b"reserves", u.as_ref()], &self.program.id());
         println!("reserves_account: {:?}", &reserves_account);
 
         // Make sure this seed matches the on-chain logic
@@ -136,6 +135,14 @@ impl Transmitter {
 
         println!("access_controller: {:?}", &access_controller);
         // let proof_state = &mut ctx.accounts.proof_state;
+        let config_pda = Pubkey::find_program_address(
+            &[&"config_pda".as_bytes(), u.as_ref()],
+            &self.program.id(),
+        )
+        .0;
+
+        println!("config_pda: {:?}", &config_pda);
+
         let verify_ix = self
             .program
             .request()
@@ -143,10 +150,12 @@ impl Transmitter {
                 verifier_account,
                 access_controller,
                 user,
-                config_account,
+                config_pda,
+                u,
+                verifier_config_account: config_account,
                 verifier_program_id,
                 compressed_proof: compressed_proof_account,
-                reserves_account,
+                reserves: reserves_account,
                 system_program: anchor_client::solana_sdk::system_program::ID,
             })
             .args(proof_of_reserves::instruction::Verify {
