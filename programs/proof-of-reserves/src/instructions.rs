@@ -2,7 +2,7 @@ use anchor_lang::prelude::*;
 
 use anchor_spl::{
     associated_token::AssociatedToken,
-    token_2022::Token2022,
+    token::Token,
     token_interface::{Mint, TokenAccount},
 };
 
@@ -29,7 +29,7 @@ pub struct Initialize<'info> {
     )]
     pub config_pda: Box<Account<'info, Config>>,
 
-    pub token_program: Program<'info, Token2022>,
+    pub token_program: Program<'info, Token>,
     pub associated_token_program: Program<'info, AssociatedToken>,
     pub system_program: Program<'info, System>,
 }
@@ -49,7 +49,7 @@ pub struct DepositMintAuthority<'info> {
     #[account(mut, mint::decimals = 9)]
     pub u: Box<InterfaceAccount<'info, Mint>>,
 
-    pub token_program: Program<'info, Token2022>,
+    pub token_program: Program<'info, Token>,
 }
 
 #[derive(Accounts)]
@@ -70,7 +70,7 @@ pub struct WithdrawMintAuthority<'info> {
     #[account(mut, mint::decimals = 9)]
     pub u: Box<InterfaceAccount<'info, Mint>>,
 
-    pub token_program: Program<'info, Token2022>,
+    pub token_program: Program<'info, Token>,
 }
 
 #[derive(Accounts)]
@@ -163,7 +163,7 @@ pub struct Issue<'info> {
     )]
     pub company_wallet_u_ata: Box<InterfaceAccount<'info, TokenAccount>>,
 
-    pub token_program: Program<'info, Token2022>,
+    pub token_program: Program<'info, Token>,
     pub associated_token_program: Program<'info, AssociatedToken>,
     pub system_program: Program<'info, System>,
 
@@ -227,7 +227,7 @@ pub struct Redeem<'info> {
     )]
     pub company_wallet_u_ata:Box<InterfaceAccount<'info, TokenAccount>>,
 
-    pub token_program: Program<'info, Token2022>,
+    pub token_program: Program<'info, Token>,
     pub associated_token_program: Program<'info, AssociatedToken>,
     pub system_program: Program<'info, System>,
 }

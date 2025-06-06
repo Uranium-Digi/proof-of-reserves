@@ -4,7 +4,7 @@ import * as path from 'path'
 import * as dotenv from 'dotenv'
 import { Connection, Keypair, PublicKey, SystemProgram, Transaction } from '@solana/web3.js'
 import { spitOutWallets } from '../src/convertKey'
-import WalletManager, { generateVanityAddresses } from '../src/WalletManager'
+import WalletManager, { clearVanityDirectory, generateVanityAddresses } from '../src/WalletManager'
 import Common from '../src/Common'
 import { TokenFactory } from '../src/TokenFactory'
 import { connection, RPC_URL, NETWORK_USED, proofOfReservesProgram, uraniumToken } from '../src/config'
@@ -229,6 +229,7 @@ async function main(uraniumTokenAddress?: string, useExistingProofOfReservesIdl?
     let proofOfReservesIdl: any
 
     if (!uraniumTokenAddress) {
+        await clearVanityDirectory()
         await generateVanityAddresses({
             startsWith: 'cake',
             count: 7,
@@ -250,35 +251,35 @@ async function main(uraniumTokenAddress?: string, useExistingProofOfReservesIdl?
     } else {
         u = new PublicKey(uraniumTokenAddress)
     }
-    // await writeUraniumTokenAddressToConfig(u.toBase58())
+    await writeUraniumTokenAddressToConfig(u.toBase58())
 
-    // if (useExistingProofOfReservesIdl) {
-    //     proofOfReservesIdl = JSON.parse(await fs.promises.readFile(path.resolve(PROOF_OF_RESERVES_IDL_DIR), 'utf-8'))
-    //     console.log('Using existing proofOfReservesIdl:', proofOfReservesIdl)
-    // } else {
-    //     const { proofOfReservesIdl: idl_from_new_deployment } = await deployProofOfReserves()
-    //     proofOfReservesIdl = idl_from_new_deployment
-    //     await new Promise((resolve) => setTimeout(resolve, 10000))
-    // }
+    if (useExistingProofOfReservesIdl) {
+        proofOfReservesIdl = JSON.parse(await fs.readFile(path.resolve(PROOF_OF_RESERVES_IDL_DIR), 'utf-8'))
+        console.log('Using existing proofOfReservesIdl:', proofOfReservesIdl)
+    } else {
+        const { proofOfReservesIdl: idl_from_new_deployment } = await deployProofOfReserves()
+        proofOfReservesIdl = idl_from_new_deployment
+        await new Promise((resolve) => setTimeout(resolve, 10000))
+    }
 
-    // const tokenAuthority = await WalletManager.getTokenAuthority()
-    // const fundingWallet = await WalletManager.getFundingWallet()
+    const tokenAuthority = await WalletManager.getTokenAuthority()
+    const fundingWallet = await WalletManager.getFundingWallet()
 
-    // const { u: uAddress, configPda: configPdaAddress } = await initialize(
-    //     tokenAuthority,
-    //     fundingWallet,
-    //     proofOfReservesIdl,
-    //     u.toBase58(),
-    // )
+    const { u: uAddress, configPda: configPdaAddress } = await initialize(
+        tokenAuthority,
+        fundingWallet,
+        proofOfReservesIdl,
+        u.toBase58(),
+    )
 
-    // await depositMintAuthority(tokenAuthority, fundingWallet, proofOfReservesIdl, u.toBase58())
+    await depositMintAuthority(tokenAuthority, fundingWallet, proofOfReservesIdl, u.toBase58())
 
-    // // Save addresses to file
-    // await saveAddressesToFile({
-    //     u: uAddress,
-    //     configPda: configPdaAddress,
-    //     proofOfReservesProgramId: proofOfReservesIdl.address,
-    // })
+    // Save addresses to file
+    await saveAddressesToFile({
+        u: uAddress,
+        configPda: configPdaAddress,
+        proofOfReservesProgramId: proofOfReservesIdl.address,
+    })
 }
 
 async function saveAddressesToFile(addresses: { u: string; configPda: string; proofOfReservesProgramId: string }) {

@@ -60,6 +60,11 @@ interface VanityOptions {
     ignoreCase?: boolean
 }
 
+export const clearVanityDirectory = async () => {
+    const vanityDir = path.resolve(__dirname, '..', '.vanity')
+    await fs.rm(vanityDir, { recursive: true })
+}
+
 export const generateVanityAddresses = async (options: VanityOptions) => {
     const vanityDir = path.resolve(__dirname, '..', '.vanity')
     await fs.mkdir(vanityDir, { recursive: true })

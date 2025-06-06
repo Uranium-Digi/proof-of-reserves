@@ -9,13 +9,14 @@ use instructions::*;
 
 pub use structs::*;
 
-declare_id!("6HP4rFEb9v9yiSkgRTHXvYCsEAx6pxqaF7R4dyK2s7BV");
+declare_id!("GaAH3oNQ7TD3egXSfies5tBPDctXjoLLuUfnGSzwtDsF");
 
 #[program]
 pub mod proof_of_reserves {
     use anchor_lang::solana_program::program::{get_return_data, invoke};
-    use anchor_spl::token_2022::{
-        burn, mint_to, set_authority, spl_token_2022::instruction::AuthorityType, transfer_checked,
+
+    use anchor_spl::token::{
+        burn, mint_to, set_authority, spl_token::instruction::AuthorityType, transfer_checked,
         Burn, MintTo, SetAuthority, TransferChecked,
     };
     use chainlink_data_streams_report::report::v3::ReportDataV3;
