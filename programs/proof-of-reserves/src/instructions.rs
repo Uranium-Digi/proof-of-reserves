@@ -244,7 +244,7 @@ pub struct Verify<'info> {
     pub access_controller: AccountInfo<'info>,
     /// The account that signs the transaction.
     /// CHECK: The mint is not dangerous because we don't read or write from this account
-    pub u: AccountInfo<'info>,
+    pub u: Box<InterfaceAccount<'info, Mint>>,
 
     #[account(mut, constraint = user.key() == config_pda.update_authority.key() @ CustomError::YouAreNotUpdateAuthority)]
     pub user: Signer<'info>,

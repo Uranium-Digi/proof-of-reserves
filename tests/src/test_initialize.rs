@@ -438,6 +438,7 @@ async fn test_initialize() {
                 })
                 .args(proof_of_reserves::instruction::Issue {
                     gross_issue: 100 * LAMPORTS_PER_SOL,
+                    issuance_id: "issuance_id".to_string(),
                 })
                 .instructions()
                 .unwrap(),
@@ -483,6 +484,7 @@ async fn test_initialize() {
                 })
                 .args(proof_of_reserves::instruction::Redeem {
                     gross_redeem: 100 * LAMPORTS_PER_SOL,
+                    redemption_id: "redemption_id".to_string(),
                 })
                 .instructions()
                 .unwrap(),

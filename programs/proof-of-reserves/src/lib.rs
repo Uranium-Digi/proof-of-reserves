@@ -1,12 +1,14 @@
 use anchor_lang::prelude::*;
 
 mod err;
+mod events;
 mod instructions;
 mod structs;
 mod utils;
 
 use instructions::*;
 
+pub use events::*;
 pub use structs::*;
 
 declare_id!("GaAH3oNQ7TD3egXSfies5tBPDctXjoLLuUfnGSzwtDsF");
@@ -53,7 +55,7 @@ pub mod proof_of_reserves {
         Ok(())
     }
 
-    pub fn issue(ctx: Context<Issue>, gross_issue: u64) -> Result<()> {
+    pub fn issue(ctx: Context<Issue>, gross_issue: u64, issuance_id: String) -> Result<()> {
         let supply = ctx.accounts.u.supply;
         let new_supply = supply.checked_add(gross_issue).unwrap(); // error if overflow
         let reserved = ctx.accounts.reserves_pda.reserves;
@@ -124,10 +126,17 @@ pub mod proof_of_reserves {
             ctx.accounts.u.decimals,
         )?;
 
+        emit!(IssueEvent {
+            gross_issue,
+            issuance_fee,
+            issuance_id,
+            created_at: Clock::get().unwrap().unix_timestamp,
+        });
+
         Ok(())
     }
 
-    pub fn redeem(ctx: Context<Redeem>, gross_redeem: u64) -> Result<()> {
+    pub fn redeem(ctx: Context<Redeem>, gross_redeem: u64, redemption_id: String) -> Result<()> {
         // calculation redemption fees
         let (redemption_fee, redeemable) = calculate_redemption_fee(
             gross_redeem,
@@ -186,6 +195,13 @@ pub mod proof_of_reserves {
             ),
             redeemable,
         )?;
+
+        emit!(RedeemEvent {
+            gross_redeem,
+            redemption_fee,
+            redemption_id,
+            created_at: Clock::get().unwrap().unix_timestamp,
+        });
 
         Ok(())
     }
@@ -291,13 +307,22 @@ pub mod proof_of_reserves {
             msg!("Proof State: {:?}", proof_state);
 
             let reserves_account = &mut ctx.accounts.reserves;
+            let reserves_prev = reserves_account.reserves;
             reserves_account.reserves = proof_state.total_reserves;
 
             msg!("Reserves Account: {:?}", reserves_account);
+
+            emit!(VerifyEvent {
+                total_reserves: reserves_account.reserves,
+                total_reserves_prev: reserves_prev,
+                total_supply: ctx.accounts.u.supply,
+                created_at: Clock::get().unwrap().unix_timestamp,
+            });
         } else {
             msg!("No report data found!");
             return Err(error!(CustomError::NoReportData));
         }
+
         Ok(())
     }
 
