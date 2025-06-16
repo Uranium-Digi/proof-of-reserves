@@ -12,8 +12,7 @@ incremental = false
 codegen-units = 1
 
 [workspace.dependencies]
-oracle-updater = { path = "programs/oracle-updater" }
-wrap-uranium = { path = "programs/wrap-uranium" }
+proof-of-reserves = { path = "programs/proof-of-reserves" }
 transmitter = { path = "apps/transmitter" }
 
 solana-sdk = "2.1.0"

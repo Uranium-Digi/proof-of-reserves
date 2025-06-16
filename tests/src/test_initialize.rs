@@ -1,4 +1,4 @@
-use std::{str::FromStr, time::Duration};
+use std::{str::FromStr, sync::Arc};
 
 use anchor_client::{
     anchor_lang::solana_program,
@@ -9,9 +9,11 @@ use anchor_client::{
 use anchor_spl::{
     associated_token::spl_associated_token_account::{
         self, get_associated_token_address_with_program_id,
-        instruction::create_associated_token_account,
+        instruction::{
+            create_associated_token_account, create_associated_token_account_idempotent,
+        },
     },
-    token_2022::spl_token_2022::{self, instruction::transfer_checked},
+    token::spl_token,
 };
 use hex_literal::hex;
 use solana_client::nonblocking::rpc_client::RpcClient;
@@ -20,13 +22,14 @@ use solana_sdk::{
     instruction::Instruction,
     message::{v0::Message, VersionedMessage},
     native_token::LAMPORTS_PER_SOL,
+    program_pack::Pack,
     signature::{read_keypair_file, Keypair, Signature},
     signers::Signers,
     system_instruction::create_account,
     transaction::VersionedTransaction,
 };
 
-use access_controller::{AccessController, ID};
+use access_controller::AccessController;
 use transmitter::transmitter::transmitter::{Transmitter, DEFAULT_HEX_STRING};
 use verifier::state::VerifierAccount;
 
@@ -188,23 +191,27 @@ async fn init_chainlink_verifier(signer: &Keypair) -> Pubkey {
 #[tokio::test]
 // #[test]
 async fn test_initialize() {
-    let program_id = Pubkey::from_str("3JmfgAqnGnyh8pXGo8w8bi6MGjfd3Jn4aaKqfJgb7UcQ").unwrap();
+    let program_id = proof_of_reserves::ID;
     let anchor_wallet = std::env::var(WALLET_KEY).unwrap();
     let signer = read_keypair_file(&anchor_wallet).unwrap();
+    let signer = Arc::new(signer);
 
     // Initialize Chainlink Verifier
-    let access_controller = init_chainlink_verifier(&signer).await;
+    let access_controller_data_account = init_chainlink_verifier(&signer).await;
 
-    // Verify the "DEFAULT_HEX_STRING" report and populate the reserves account
-    Transmitter::new(Some(Cluster::Localnet), Some(WALLET_KEY.to_string()))
-        .unwrap()
-        .verify(DEFAULT_HEX_STRING, Some(access_controller))
-        .await
-        .unwrap();
+    let u = Keypair::new();
 
-    let owner = Keypair::new();
-    let dest = Keypair::new();
-    let mint = Keypair::new();
+    let master_wallet = Keypair::new();
+    let company_wallet = Keypair::new();
+
+    let issuance_wallet_pda =
+        Pubkey::find_program_address(&[b"issuance_wallet_pda", u.pubkey().as_ref()], &program_id).0;
+
+    let redemption_wallet_pda = Pubkey::find_program_address(
+        &[b"redemption_wallet_pda", u.pubkey().as_ref()],
+        &program_id,
+    )
+    .0;
 
     let client =
         Client::new_with_options(Cluster::Localnet, &signer, CommitmentConfig::processed());
@@ -217,60 +224,57 @@ async fn test_initialize() {
         .await
         .unwrap();
 
-    rpc.request_airdrop(&dest.pubkey(), 5 * LAMPORTS_PER_SOL)
+    rpc.request_airdrop(&master_wallet.pubkey(), 5 * LAMPORTS_PER_SOL)
         .await
         .unwrap();
 
-    rpc.request_airdrop(&owner.pubkey(), 5 * LAMPORTS_PER_SOL)
-        .await
-        .unwrap();
+    let config_pda =
+        Pubkey::find_program_address(&[b"config_pda", u.pubkey().as_ref()], &program_id).0;
 
-    let wrapped_mint =
-        Pubkey::find_program_address(&[b"wrapped_mint", mint.pubkey().as_ref()], &program_id).0;
+    let signer_ata =
+        get_associated_token_address_with_program_id(&signer.pubkey(), &u.pubkey(), &spl_token::ID);
 
-    let config = Pubkey::find_program_address(&[b"config", mint.pubkey().as_ref()], &program_id).0;
+    let signer_u_ata =
+        get_associated_token_address_with_program_id(&signer.pubkey(), &u.pubkey(), &spl_token::ID);
 
-    let fee_rebate_reserve = Pubkey::find_program_address(
-        &[b"fee_rebate_reserve", mint.pubkey().as_ref()],
-        &program_id,
-    )
-    .0;
-
-    let mint_ata = get_associated_token_address_with_program_id(
-        &config,        // owner
-        &mint.pubkey(), // mint
-        &spl_token_2022::ID,
+    let master_wallet_u_ata = get_associated_token_address_with_program_id(
+        &master_wallet.pubkey(),
+        &u.pubkey(),
+        &spl_token::ID,
     );
 
-    let dest_wrapped_ata = get_associated_token_address_with_program_id(
-        &dest.pubkey(),
-        &wrapped_mint,
-        &spl_token_2022::ID,
+    let company_wallet_u_ata = get_associated_token_address_with_program_id(
+        &company_wallet.pubkey(),
+        &u.pubkey(),
+        &spl_token::ID,
     );
 
-    let destination_ata = get_associated_token_address_with_program_id(
-        &dest.pubkey(),
-        &mint.pubkey(),
-        &spl_token_2022::ID,
+    let issuance_wallet_pda_u_ata = get_associated_token_address_with_program_id(
+        &issuance_wallet_pda,
+        &u.pubkey(),
+        &spl_token::ID,
     );
 
-    let owner_ata = get_associated_token_address_with_program_id(
-        &owner.pubkey(),
-        &mint.pubkey(),
-        &spl_token_2022::ID,
+    let redemption_wallet_pda_u_ata = get_associated_token_address_with_program_id(
+        &redemption_wallet_pda,
+        &u.pubkey(),
+        &spl_token::ID,
     );
 
-    let owner_wrapped_ata = get_associated_token_address_with_program_id(
-        &owner.pubkey(),
-        &wrapped_mint,
-        &spl_token_2022::ID,
+    // print all pda and ata
+    println!("config_pda: {:?}", config_pda);
+    println!("issuance_wallet_pda: {:?}", issuance_wallet_pda);
+    println!("issuance_wallet_pda_u_ata: {:?}", issuance_wallet_pda_u_ata);
+    println!("master_wallet_u_ata: {:?}", master_wallet_u_ata);
+    println!("company_wallet_u_ata: {:?}", company_wallet_u_ata);
+    println!("issuance_wallet_pda_u_ata: {:?}", issuance_wallet_pda_u_ata);
+    println!("redemption_wallet_pda: {:?}", redemption_wallet_pda);
+    println!(
+        "redemption_wallet_pda_u_ata: {:?}",
+        redemption_wallet_pda_u_ata
     );
 
-    let extension_types = vec![spl_token_2022::extension::ExtensionType::TransferFeeConfig];
-    let space = spl_token_2022::extension::ExtensionType::try_calculate_account_len::<
-        spl_token_2022::state::Mint,
-    >(&extension_types)
-    .unwrap();
+    let space = spl_token::state::Mint::LEN;
 
     let rent = rpc
         .get_minimum_balance_for_rent_exemption(space)
@@ -278,30 +282,21 @@ async fn test_initialize() {
         .unwrap();
     println!("Initializing");
     {
+        // Init mint with transfer fee
         let mut ixs = vec![
             create_account(
                 &signer.pubkey(),
-                &mint.pubkey(),
+                &u.pubkey(),
                 rent,
                 space as u64,
-                &spl_token_2022::ID,
+                &spl_token::ID,
             ),
-            // Init mint with transfer fee
-            spl_token_2022::extension::transfer_fee::instruction::initialize_transfer_fee_config(
-                &spl_token_2022::ID,
-                &mint.pubkey(),
-                Some(&signer.pubkey()),   // Transfer fee authority
-                Some(&signer.pubkey()),   // Withdraw withheld fee authority
-                1000,                     // Fee bps
-                10000 * LAMPORTS_PER_SOL, // Max fee
-            )
-            .unwrap(),
-            spl_token_2022::instruction::initialize_mint(
-                &spl_token_2022::ID,
-                &mint.pubkey(),   // Mint address
-                &signer.pubkey(), // Mint authority
-                None,             // Freeze authority
-                9,                // Decimals
+            spl_token::instruction::initialize_mint(
+                &spl_token::ID,
+                &u.pubkey(),            // Mint address
+                &signer.pubkey(),       // Mint authority
+                Some(&signer.pubkey()), // Freeze authority
+                9,                      // Decimals
             )
             .unwrap(),
         ];
@@ -309,311 +304,202 @@ async fn test_initialize() {
         ixs.append(
             &mut program
                 .request()
-                .accounts(wrap_uranium::accounts::Initialize {
+                .accounts(proof_of_reserves::accounts::Initialize {
                     signer: signer.pubkey(),
-                    mint: mint.pubkey(),
-                    wrapped_mint,
-                    config,
-                    mint_ata,
-                    fee_rebate_reserve,
-                    token_program: spl_token_2022::ID,
+                    u: u.pubkey(),
+                    config_pda,
+                    token_program: spl_token::ID,
                     associated_token_program: spl_associated_token_account::ID,
                     system_program: solana_program::system_program::ID,
                 })
-                .args(wrap_uranium::instruction::Initialize {})
+                .args(proof_of_reserves::instruction::Initialize {})
                 .instructions()
                 .unwrap(),
         );
 
-        send_tx(&rpc, ixs, &signer.pubkey(), &[&signer, &mint]).await;
-    }
-
-    println!("Minting to fee rebate reserve");
-    {
-        let mut ixs = vec![];
-
+        // This is just for the tests - at launch this will not be necessary
+        println!("Minting to signer");
+        ixs.push(create_associated_token_account(
+            &signer.pubkey(), // ata rent payer
+            &signer.pubkey(), // owner
+            &u.pubkey(),
+            &spl_token::ID,
+        ));
         ixs.push(
-            spl_token_2022::instruction::mint_to(
-                &spl_token_2022::ID,
-                &mint.pubkey(),
-                &fee_rebate_reserve,
-                &signer.pubkey(),
-                &[],
-                1_000_000 * LAMPORTS_PER_SOL,
-            )
-            .unwrap(),
-        );
-        send_tx(&rpc, ixs, &signer.pubkey(), &[&signer]).await;
-    }
-
-    println!("Wrapping");
-    {
-        let mut ixs = vec![
-            create_associated_token_account(
-                &signer.pubkey(),
-                &owner.pubkey(),
-                &mint.pubkey(),
-                &spl_token_2022::ID,
-            ),
-            spl_token_2022::instruction::mint_to(
-                &spl_token_2022::ID,
-                &mint.pubkey(),
-                &owner_ata,
-                &signer.pubkey(),
+            spl_token::instruction::mint_to(
+                &spl_token::ID,
+                &u.pubkey(),
+                &signer_ata,      // ata
+                &signer.pubkey(), // mint authority
                 &[],
                 100 * LAMPORTS_PER_SOL,
             )
             .unwrap(),
-        ];
+        );
 
+        println!("Depositing mint authority");
         ixs.append(
             &mut program
                 .request()
-                .accounts(wrap_uranium::accounts::Wrap {
+                .accounts(proof_of_reserves::accounts::DepositMintAuthority {
                     signer: signer.pubkey(),
-                    owner: owner.pubkey(),
-                    owner_ata,
-                    mint: mint.pubkey(),
-                    wrapped_mint,
-                    config,
-                    mint_ata,
-                    destination: dest.pubkey(),
-                    destination_wrapped_ata: dest_wrapped_ata,
-                    token_program: spl_token_2022::ID,
-                    associated_token_program: spl_associated_token_account::ID,
-                    system_program: solana_program::system_program::ID,
+                    config_pda,
+                    u: u.pubkey(),
+                    token_program: spl_token::ID,
                 })
-                .args(wrap_uranium::instruction::Wrap {
-                    token_amount: 100 * LAMPORTS_PER_SOL,
-                })
+                .args(proof_of_reserves::instruction::DepositMintAuthority {})
                 .instructions()
                 .unwrap(),
         );
 
-        send_tx(&rpc, ixs, &signer.pubkey(), &[&signer, &owner]).await;
-
-        let dest_wrapped_ata_balance = rpc
-            .get_token_account_balance(&dest_wrapped_ata)
-            .await
-            .unwrap()
-            .amount
-            .parse::<u64>()
-            .unwrap();
-        let owner_ata_balance = rpc
-            .get_token_account_balance(&owner_ata)
-            .await
-            .unwrap()
-            .amount
-            .parse::<u64>()
-            .unwrap();
-
-        assert_eq!(dest_wrapped_ata_balance, 100 * LAMPORTS_PER_SOL,);
-        assert_eq!(owner_ata_balance, 0,);
-    }
-
-    println!("Transfering wrapped token");
-    {
-        // transfer the wrapped token from destination to owner
-        let ixs = vec![
-            create_associated_token_account(
-                &dest.pubkey(),
-                &owner.pubkey(),
-                &wrapped_mint,
-                &spl_token_2022::ID,
-            ),
-            transfer_checked(
-                &spl_token_2022::ID,
-                &dest_wrapped_ata,
-                &wrapped_mint,
-                &owner_wrapped_ata,
-                &dest.pubkey(),
-                &[],
-                100 * LAMPORTS_PER_SOL,
-                9,
-            )
-            .unwrap(),
-        ];
-
-        send_tx(&rpc, ixs, &dest.pubkey(), &[&dest]).await;
-    }
-
-    println!("Unwrapping");
-    {
-        let mut ixs = vec![];
-
-        ixs.append(
-            &mut program
-                .request()
-                .accounts(wrap_uranium::accounts::Unwrap {
-                    signer: signer.pubkey(),
-                    owner: owner.pubkey(),
-                    owner_wrapped_ata,
-                    mint: mint.pubkey(),
-                    wrapped_mint,
-                    config,
-                    mint_ata,
-                    destination: dest.pubkey(),
-                    destination_ata,
-                    fee_rebate_reserve,
-                    token_program: spl_token_2022::ID,
-                    associated_token_program: spl_associated_token_account::ID,
-                    system_program: solana_program::system_program::ID,
-                })
-                .args(wrap_uranium::instruction::Unwrap {
-                    token_amount: 100 * LAMPORTS_PER_SOL,
-                })
-                .instructions()
-                .unwrap(),
-        );
-
-        send_tx(&rpc, ixs, &signer.pubkey(), &[&signer, &owner]).await;
-
-        let owner_wrapped_ata_balance = rpc
-            .get_token_account_balance(&owner_wrapped_ata)
-            .await
-            .unwrap()
-            .amount
-            .parse::<u64>()
-            .unwrap();
-        let destination_ata_balance = rpc
-            .get_token_account_balance(&destination_ata)
-            .await
-            .unwrap()
-            .amount
-            .parse::<u64>()
-            .unwrap();
-
-        assert_eq!(owner_wrapped_ata_balance, 0,);
-        assert_eq!(destination_ata_balance, 100 * LAMPORTS_PER_SOL,);
-    }
-
-    println!("MintingAndWrapping");
-    {
-        let reserves_account = Pubkey::find_program_address(&[b"reserves"], &oracle_updater::ID).0;
-
-        println!("reserves_account: {:?}", &reserves_account);
-        let mut ixs = vec![];
-
-        ixs.append(
-            &mut program
-                .request()
-                .accounts(wrap_uranium::accounts::DepositMintAuthority {
-                    signer: signer.pubkey(),
-                    config,
-                    mint: mint.pubkey(),
-                    token_program: spl_token_2022::ID,
-                })
-                .args(wrap_uranium::instruction::DepositMintAuthority {})
-                .instructions()
-                .unwrap(),
-        );
-
-        ixs.append(
-            &mut program
-                .request()
-                .accounts(wrap_uranium::accounts::MintAndWrap {
-                    signer: signer.pubkey(),
-                    mint: mint.pubkey(),
-                    wrapped_mint,
-                    config,
-                    mint_ata,
-                    token_program: spl_token_2022::ID,
-                    destination_wrapped_ata: dest_wrapped_ata,
-                    destination: dest.pubkey(),
-                    associated_token_program: spl_associated_token_account::ID,
-                    system_program: solana_program::system_program::ID,
-                    //
-                    oracle_updater_program: oracle_updater::ID,
-                    reserves_account,
-                })
-                .args(wrap_uranium::instruction::MintAndWrap {
-                    token_amount: 100 * LAMPORTS_PER_SOL,
-                })
-                .instructions()
-                .unwrap(),
-        );
-
-        send_tx(&rpc, ixs, &signer.pubkey(), &[&signer]).await;
-        let dest_wrapped_ata_balance = rpc
-            .get_token_account_balance(&dest_wrapped_ata)
-            .await
-            .unwrap()
-            .amount
-            .parse::<u64>()
-            .unwrap();
-        let wrapped_supply = rpc
-            .get_token_supply(&wrapped_mint)
-            .await
-            .unwrap()
-            .amount
-            .parse::<u64>()
-            .unwrap();
-        assert_eq!(dest_wrapped_ata_balance, 100 * LAMPORTS_PER_SOL,);
-        assert_eq!(wrapped_supply, 100 * LAMPORTS_PER_SOL,);
-    }
-
-    println!("Transfering wrapped token");
-    {
-        // transfer the wrapped token from destination to signer
-        let ixs = vec![transfer_checked(
-            &spl_token_2022::ID,
-            &dest_wrapped_ata,
-            &wrapped_mint,
-            &owner_wrapped_ata,
-            &dest.pubkey(),
-            &[],
-            100 * LAMPORTS_PER_SOL,
-            9,
+        let tx = send_tx(&rpc, ixs, &signer.pubkey(), &[&signer, &u]).await;
+        rpc.confirm_transaction_with_spinner(
+            &tx,
+            &rpc.get_latest_blockhash().await.unwrap(),
+            CommitmentConfig::finalized(),
         )
-        .unwrap()];
-
-        send_tx(&rpc, ixs, &dest.pubkey(), &[&dest]).await;
+        .await
+        .unwrap();
     }
 
-    println!("UnwrapAndBurn");
+    println!("Verify");
+    // Verify the "DEFAULT_HEX_STRING" report and populate the reserves account
+    // This need to be call after initialize
+    let tx = Transmitter::new(
+        Cluster::Localnet,
+        signer.clone(),
+        program_id,
+        u.pubkey(),
+        verifier::ID,
+        access_controller::ID,
+        access_controller_data_account,
+    )
+    .unwrap()
+    .verify(DEFAULT_HEX_STRING)
+    .await
+    .unwrap();
+    rpc.confirm_transaction_with_spinner(
+        &tx,
+        &rpc.get_latest_blockhash().await.unwrap(),
+        CommitmentConfig::finalized(),
+    )
+    .await
+    .unwrap();
+
+    println!("Issue");
     {
+        let reserves_pda =
+            Pubkey::find_program_address(&[b"reserves", u.pubkey().as_ref()], &program_id).0;
+
+        println!("reserves_account: {:?}", &reserves_pda);
         let mut ixs = vec![];
+
+        // create issuance_wallet_pda_wrapped_ata
+        ixs.push(create_associated_token_account(
+            &signer.pubkey(),
+            &&issuance_wallet_pda,
+            &u.pubkey(),
+            &spl_token::ID,
+        ));
+
+        // create company_wallet_wrapped_ata
+        ixs.push(create_associated_token_account(
+            &signer.pubkey(),
+            &company_wallet.pubkey(),
+            &u.pubkey(),
+            &spl_token::ID,
+        ));
+
+        // create master_wallet_wrapped_ata
+        ixs.push(create_associated_token_account_idempotent(
+            &signer.pubkey(),
+            &master_wallet.pubkey(),
+            &u.pubkey(),
+            &spl_token::ID,
+        ));
 
         ixs.append(
             &mut program
                 .request()
-                .accounts(wrap_uranium::accounts::UnwrapAndBurn {
+                .accounts(proof_of_reserves::accounts::Issue {
                     signer: signer.pubkey(),
-                    owner: owner.pubkey(),
-                    mint: mint.pubkey(),
-                    wrapped_mint,
-                    config,
-                    mint_ata,
-                    owner_wrapped_ata,
-                    fee_rebate_reserve,
-                    token_program: spl_token_2022::ID,
+                    config_pda,
+                    u: u.pubkey(),
+                    issuance_wallet_pda,
+                    issuance_wallet_pda_u_ata,
+                    master_wallet: master_wallet.pubkey(),
+                    master_wallet_u_ata,
+                    company_wallet: company_wallet.pubkey(),
+                    company_wallet_u_ata,
+                    token_program: spl_token::ID,
                     associated_token_program: spl_associated_token_account::ID,
                     system_program: solana_program::system_program::ID,
+                    reserves_pda,
                 })
-                .args(wrap_uranium::instruction::UnwrapAndBurn {
-                    token_amount: 100 * LAMPORTS_PER_SOL,
+                .args(proof_of_reserves::instruction::Issue {
+                    gross_issue: 100 * LAMPORTS_PER_SOL,
+                    issuance_id: "issuance_id".to_string(),
                 })
                 .instructions()
                 .unwrap(),
         );
 
-        send_tx(&rpc, ixs, &signer.pubkey(), &[&signer, &owner]).await;
-        let owner_wrapped_ata_balance = rpc
-            .get_token_account_balance(&owner_wrapped_ata)
+        send_tx(&rpc, ixs, &signer.pubkey(), &[&signer]).await;
+        let master_wallet_ata_balance = rpc
+            .get_token_account_balance(&master_wallet_u_ata)
+            .await
+            .unwrap()
+            .amount
+            .parse::<u64>()
+            .unwrap();
+        assert_eq!(master_wallet_ata_balance, 100 * LAMPORTS_PER_SOL,);
+    }
+
+    println!("Redeem");
+    {
+        let mut ixs = vec![];
+        // create company
+        ixs.push(create_associated_token_account(
+            &signer.pubkey(),
+            &redemption_wallet_pda,
+            &u.pubkey(),
+            &spl_token::ID,
+        ));
+
+        ixs.append(
+            &mut program
+                .request()
+                .accounts(proof_of_reserves::accounts::Redeem {
+                    signer: signer.pubkey(),
+                    signer_u_ata,
+                    config_pda,
+                    u: u.pubkey(),
+                    redemption_wallet_pda,
+                    redemption_wallet_pda_u_ata,
+                    company_wallet: company_wallet.pubkey(),
+                    company_wallet_u_ata,
+                    token_program: spl_token::ID,
+                    associated_token_program: spl_associated_token_account::ID,
+                    system_program: solana_program::system_program::ID,
+                })
+                .args(proof_of_reserves::instruction::Redeem {
+                    gross_redeem: 100 * LAMPORTS_PER_SOL,
+                    redemption_id: "redemption_id".to_string(),
+                })
+                .instructions()
+                .unwrap(),
+        );
+
+        send_tx(&rpc, ixs, &signer.pubkey(), &[&signer]).await;
+        let signer_ata_balance = rpc
+            .get_token_account_balance(&signer_u_ata)
             .await
             .unwrap()
             .amount
             .parse::<i64>()
             .unwrap();
-        let wrapped_supply = rpc
-            .get_token_supply(&wrapped_mint)
-            .await
-            .unwrap()
-            .amount
-            .parse::<i64>()
-            .unwrap();
-        assert_eq!(owner_wrapped_ata_balance, 0);
-        assert_eq!(wrapped_supply, 0);
+
+        assert_eq!(signer_ata_balance, 0);
     }
 }
 

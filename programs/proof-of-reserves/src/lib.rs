@@ -1,0 +1,340 @@
+use anchor_lang::prelude::*;
+
+mod err;
+mod events;
+mod instructions;
+mod structs;
+mod utils;
+
+use instructions::*;
+
+pub use events::*;
+pub use structs::*;
+
+declare_id!("GaAH3oNQ7TD3egXSfies5tBPDctXjoLLuUfnGSzwtDsF");
+
+#[program]
+pub mod proof_of_reserves {
+    use anchor_lang::solana_program::program::{get_return_data, invoke};
+
+    use anchor_spl::token::{
+        burn, mint_to, set_authority, spl_token::instruction::AuthorityType, transfer_checked,
+        Burn, MintTo, SetAuthority, TransferChecked,
+    };
+    use chainlink_data_streams_report::report::v3::ReportDataV3;
+    use chainlink_solana_data_streams::VerifierInstructions;
+    use spl_tlv_account_resolution::solana_instruction::Instruction;
+
+    use crate::{
+        err::CustomError,
+        utils::{calculate_issuance_fee, calculate_redemption_fee},
+    };
+
+    use super::*;
+
+    pub fn initialize(ctx: Context<Initialize>) -> Result<()> {
+        ctx.accounts.config_pda.authority = ctx.accounts.signer.key();
+        ctx.accounts.config_pda.update_authority = ctx.accounts.signer.key();
+        ctx.accounts.config_pda.issue_authority = ctx.accounts.signer.key();
+        ctx.accounts.config_pda.redeem_authority = ctx.accounts.signer.key();
+        ctx.accounts.config_pda.issuance_fee_rate = 0;
+        ctx.accounts.config_pda.redemption_fee_rate = 0;
+        Ok(())
+    }
+
+    pub fn set_app_config(
+        ctx: Context<SetConfig>,
+        new_issuance_fee_rate: u16,
+        new_redemption_fee_rate: u16,
+    ) -> Result<()> {
+        ctx.accounts.config_pda.authority = ctx.accounts.new_authority.key();
+        ctx.accounts.config_pda.issue_authority = ctx.accounts.new_issue_authority.key();
+        ctx.accounts.config_pda.redeem_authority = ctx.accounts.new_redeem_authority.key();
+        ctx.accounts.config_pda.issuance_fee_rate = new_issuance_fee_rate;
+        ctx.accounts.config_pda.redemption_fee_rate = new_redemption_fee_rate;
+        Ok(())
+    }
+
+    pub fn issue(ctx: Context<Issue>, gross_issue: u64, issuance_id: String) -> Result<()> {
+        let supply = ctx.accounts.u.supply;
+        let new_supply = supply.checked_add(gross_issue).unwrap(); // error if overflow
+        let reserved = ctx.accounts.reserves_pda.reserves;
+        if new_supply > reserved {
+            return Err(CustomError::InsufficientReserves.into());
+        }
+        // calculate fees now
+        let (issuance_fee, receivable) = calculate_issuance_fee(
+            gross_issue,
+            ctx.accounts.config_pda.issuance_fee_rate as u64,
+        )?;
+
+        // Minting the gross_issue amount of U token to issuance_wallet_pda_u_ata
+        mint_to(
+            CpiContext::new_with_signer(
+                ctx.accounts.token_program.to_account_info(),
+                MintTo {
+                    mint: ctx.accounts.u.to_account_info(),
+                    to: ctx.accounts.issuance_wallet_pda_u_ata.to_account_info(),
+                    authority: ctx.accounts.config_pda.to_account_info(),
+                },
+                &[&[
+                    b"config_pda",
+                    ctx.accounts.u.key().as_ref(),
+                    &[ctx.bumps.config_pda],
+                ]],
+            ),
+            gross_issue,
+        )?;
+
+        // Transfer the Issuance Fee (U token) from the issuance wallet pda U ata to the company wallet U ata
+        transfer_checked(
+            CpiContext::new_with_signer(
+                ctx.accounts.token_program.to_account_info(),
+                TransferChecked {
+                    mint: ctx.accounts.u.to_account_info(),
+                    from: ctx.accounts.issuance_wallet_pda_u_ata.to_account_info(),
+                    to: ctx.accounts.company_wallet_u_ata.to_account_info(),
+                    authority: ctx.accounts.issuance_wallet_pda.to_account_info(),
+                },
+                &[&[
+                    b"issuance_wallet_pda",
+                    ctx.accounts.u.key().as_ref(),
+                    &[ctx.bumps.issuance_wallet_pda],
+                ]],
+            ),
+            issuance_fee,
+            ctx.accounts.u.decimals,
+        )?;
+
+        // Transfer the U token from the issuance wallet pda wrapped ata to the master wallet U ata
+        transfer_checked(
+            CpiContext::new_with_signer(
+                ctx.accounts.token_program.to_account_info(),
+                TransferChecked {
+                    mint: ctx.accounts.u.to_account_info(),
+                    from: ctx.accounts.issuance_wallet_pda_u_ata.to_account_info(),
+                    to: ctx.accounts.master_wallet_u_ata.to_account_info(),
+                    authority: ctx.accounts.issuance_wallet_pda.to_account_info(),
+                },
+                &[&[
+                    b"issuance_wallet_pda",
+                    ctx.accounts.u.key().as_ref(),
+                    &[ctx.bumps.issuance_wallet_pda],
+                ]],
+            ),
+            receivable,
+            ctx.accounts.u.decimals,
+        )?;
+
+        emit!(IssueEvent {
+            gross_issue,
+            issuance_fee,
+            issuance_id,
+            created_at: Clock::get().unwrap().unix_timestamp,
+        });
+
+        Ok(())
+    }
+
+    pub fn redeem(ctx: Context<Redeem>, gross_redeem: u64, redemption_id: String) -> Result<()> {
+        // calculation redemption fees
+        let (redemption_fee, redeemable) = calculate_redemption_fee(
+            gross_redeem,
+            ctx.accounts.config_pda.redemption_fee_rate as u64,
+        )?;
+
+        // Transfer the U token from the signer U ata to the redemption wallet pda U ata
+        transfer_checked(
+            CpiContext::new(
+                ctx.accounts.token_program.to_account_info(),
+                TransferChecked {
+                    mint: ctx.accounts.u.to_account_info(),
+                    from: ctx.accounts.signer_u_ata.to_account_info(),
+                    to: ctx.accounts.redemption_wallet_pda_u_ata.to_account_info(),
+                    authority: ctx.accounts.signer.to_account_info(),
+                },
+            ),
+            gross_redeem,
+            ctx.accounts.u.decimals,
+        )?;
+
+        // Transfer the Redemption Fee (U token) from the redemption wallet pda U ata to the company wallet U ata
+        transfer_checked(
+            CpiContext::new_with_signer(
+                ctx.accounts.token_program.to_account_info(),
+                TransferChecked {
+                    mint: ctx.accounts.u.to_account_info(),
+                    from: ctx.accounts.redemption_wallet_pda_u_ata.to_account_info(),
+                    to: ctx.accounts.company_wallet_u_ata.to_account_info(),
+                    authority: ctx.accounts.redemption_wallet_pda.to_account_info(),
+                },
+                &[&[
+                    b"redemption_wallet_pda",
+                    ctx.accounts.u.key().as_ref(),
+                    &[ctx.bumps.redemption_wallet_pda],
+                ]],
+            ),
+            redemption_fee,
+            ctx.accounts.u.decimals,
+        )?;
+
+        // Burn the U from the redemption wallet pda U ata
+        burn(
+            CpiContext::new_with_signer(
+                ctx.accounts.token_program.to_account_info(),
+                Burn {
+                    mint: ctx.accounts.u.to_account_info(),
+                    from: ctx.accounts.redemption_wallet_pda_u_ata.to_account_info(),
+                    authority: ctx.accounts.redemption_wallet_pda.to_account_info(),
+                },
+                &[&[
+                    b"redemption_wallet_pda",
+                    ctx.accounts.u.key().as_ref(),
+                    &[ctx.bumps.redemption_wallet_pda],
+                ]],
+            ),
+            redeemable,
+        )?;
+
+        emit!(RedeemEvent {
+            gross_redeem,
+            redemption_fee,
+            redemption_id,
+            created_at: Clock::get().unwrap().unix_timestamp,
+        });
+
+        Ok(())
+    }
+
+    // Mint authority "signer" -> "config_pda"
+    pub fn deposit_mint_authority(ctx: Context<DepositMintAuthority>) -> Result<()> {
+        set_authority(
+            CpiContext::new(
+                ctx.accounts.token_program.to_account_info(),
+                SetAuthority {
+                    current_authority: ctx.accounts.signer.to_account_info(),
+                    account_or_mint: ctx.accounts.u.to_account_info(),
+                },
+            ),
+            AuthorityType::MintTokens,
+            Some(ctx.accounts.config_pda.key()),
+        )?;
+        Ok(())
+    }
+
+    // Mint authority "config_pda" -> "signer"
+    pub fn withdraw_mint_authority(ctx: Context<WithdrawMintAuthority>) -> Result<()> {
+        set_authority(
+            CpiContext::new_with_signer(
+                ctx.accounts.token_program.to_account_info(),
+                SetAuthority {
+                    current_authority: ctx.accounts.config_pda.to_account_info(),
+                    account_or_mint: ctx.accounts.u.to_account_info(),
+                },
+                &[&[
+                    b"config_pda",
+                    ctx.accounts.u.key().as_ref(),
+                    &[ctx.bumps.config_pda],
+                ]],
+            ),
+            AuthorityType::MintTokens,
+            Some(ctx.accounts.signer.key()),
+        )?;
+        Ok(())
+    }
+
+    /// Verifies a Data Streams report using Cross-Program Invocation to the Verifier program
+    /// Returns the decoded report data if verification succeeds
+    pub fn verify(
+        ctx: Context<Verify>,
+        signed_report: Vec<u8>,
+        compressed_proof: Vec<u8>,
+    ) -> Result<()> {
+        let program_id = ctx.accounts.verifier_program_id.key();
+        let verifier_account = ctx.accounts.verifier_account.key();
+        let access_controller = ctx.accounts.access_controller.key();
+        let user = ctx.accounts.user.key();
+        let config_account = ctx.accounts.verifier_config_account.key();
+
+        // Create verification instruction
+        let chainlink_ix: Instruction = VerifierInstructions::verify(
+            &program_id,
+            &verifier_account,
+            &access_controller,
+            &user,
+            &config_account,
+            signed_report,
+        );
+
+        // Invoke the Verifier program
+        invoke(
+            &chainlink_ix,
+            &[
+                ctx.accounts.verifier_account.to_account_info(),
+                ctx.accounts.access_controller.to_account_info(),
+                ctx.accounts.user.to_account_info(),
+                ctx.accounts.verifier_config_account.to_account_info(),
+            ],
+        )?;
+
+        // Decode and log the verified report data
+        if let Some((_program_id, return_data)) = get_return_data() {
+            msg!("Report data found!");
+            let report = ReportDataV3::decode(&return_data)
+                .map_err(|_| error!(CustomError::InvalidReportData))?;
+
+            // The ProofState struct compressed must be constructed prior
+            let compressed_proof_account = &mut ctx.accounts.compressed_proof;
+            compressed_proof_account.compressed_proof = compressed_proof;
+            // Log report fields
+            msg!("FeedId: {}", report.feed_id);
+            msg!("Valid from timestamp: {}", report.valid_from_timestamp);
+            msg!("Observations Timestamp: {}", report.observations_timestamp);
+            msg!("Native Fee: {}", report.native_fee);
+            msg!("Link Fee: {}", report.link_fee);
+            msg!("Expires At: {}", report.expires_at);
+            msg!("Benchmark Price: {}", report.benchmark_price);
+            msg!("Bid: {}", report.bid);
+            msg!("Ask: {}", report.ask);
+
+            // // log the proof state
+            msg!(
+                "Compressed Proof: {:?}",
+                compressed_proof_account.compressed_proof.clone()
+            );
+
+            let proof_state = compressed_proof_account.decode()?;
+            msg!("Proof State: {:?}", proof_state);
+
+            let reserves_account = &mut ctx.accounts.reserves;
+            let reserves_prev = reserves_account.reserves;
+            reserves_account.reserves = proof_state.total_reserves;
+
+            msg!("Reserves Account: {:?}", reserves_account);
+
+            emit!(VerifyEvent {
+                total_reserves: reserves_account.reserves,
+                total_reserves_prev: reserves_prev,
+                total_supply: ctx.accounts.u.supply,
+                created_at: Clock::get().unwrap().unix_timestamp,
+            });
+        } else {
+            msg!("No report data found!");
+            return Err(error!(CustomError::NoReportData));
+        }
+
+        Ok(())
+    }
+
+    // tells you the current reserves amount
+    pub fn reserve_amount(ctx: Context<ReservesContext>) -> Result<()> {
+        let reserves_account = &ctx.accounts.reserves_account;
+        msg!("Reserves amount: {}", reserves_account.reserves);
+        Ok(())
+    }
+
+    pub fn update_reserves_amount(ctx: Context<ReservesContext>, amount: u64) -> Result<()> {
+        ctx.accounts.reserves_account.reserves = amount;
+        Ok(())
+    }
+}

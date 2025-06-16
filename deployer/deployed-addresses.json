@@ -1,0 +1,9 @@
+{
+  "timestamp": "2025-06-09T15:30:03.170Z",
+  "network": "devnet",
+  "addresses": {
+    "u": "CAKeZkCxys7G2nEsR6jSSmkDrAeBa6fM56CnMjRzrkhW",
+    "configPda": "GJ2TgVaiZWvkm7rn2TbBvu1km9RYiMiQ8jA6KMWw3oWp",
+    "proofOfReservesProgramId": "GaAH3oNQ7TD3egXSfies5tBPDctXjoLLuUfnGSzwtDsF"
+  }
+}

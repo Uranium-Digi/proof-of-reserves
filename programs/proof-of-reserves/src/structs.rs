@@ -1,66 +1,17 @@
 use anchor_lang::prelude::*;
-use anchor_lang::solana_program::pubkey::Pubkey;
 
-use hex;
+use crate::err::CustomError;
 
-#[derive(Accounts)]
-pub struct Initialize {}
-
-#[error_code]
-pub enum CustomError {
-    #[msg("No valid report data found")]
-    NoReportData,
-    #[msg("Invalid report data format")]
-    InvalidReportData,
-    #[msg("Invalid hex string")]
-    InvalidHexString,
-    #[msg("Invalid UTF-8 string")]
-    InvalidUtf8String,
-}
-
-#[derive(Accounts)]
-pub struct ExampleProgramContext<'info> {
-    /// The Verifier Account stores the DON's public keys and other verification parameters.
-    /// This account must match the PDA derived from the verifier program.
-    /// CHECK: The account is validated by the verifier program.
-    pub verifier_account: AccountInfo<'info>,
-    /// The Access Controller Account
-    /// /// CHECK: The account strudcture is validated by the verifier program.
-    pub access_controller: AccountInfo<'info>,
-    /// The account that signs the transaction.
-    #[account(mut)]
-    pub user: Signer<'info>,
-    // pub user: Signer<'info>,
-    /// The Config Account is a PDA derived from a signed report
-    /// CHECK: the account is validated by the verifier program.
-    pub config_account: AccountInfo<'info>,
-    /// The Verifier Program ID specifies the target Chainlink Data Streams Verifier program
-    /// CHECK: The program ID is validated by the verifier program.
-    pub verifier_program_id: AccountInfo<'info>,
-    /// PDA that stores the last verified report
-    #[account(
-        init_if_needed,
-        seeds=[b"proof_v4"],
-        bump,
-        payer = user,
-        space = 8 + 4 + 1024 // space = 8 + std::mem::size_of::<CompressedProof>()
-    )]
-    pub compressed_proof: Account<'info, CompressedProof>, // should be an account
-
-    #[account(init_if_needed,
-        seeds=[b"reserves"],
-        bump,
-        payer = user,
-        space = 8 + 8,
-    )]
-    pub reserves_account: Account<'info, Reserves>,
-    pub system_program: Program<'info, System>,
-}
-
-#[derive(Accounts)]
-pub struct ReservesContext<'info> {
-    #[account(mut, seeds=[b"reserves"], bump)]
-    pub reserves_account: Account<'info, Reserves>,
+#[account]
+#[derive(InitSpace)]
+pub struct Config {
+    pub authority: Pubkey,
+    pub issue_authority: Pubkey,
+    pub redeem_authority: Pubkey,
+    pub update_authority: Pubkey,
+    pub issuance_fee_rate: u16,
+    pub redemption_fee_rate: u16,
+    pub padding: [u8; 64],
 }
 
 #[account]
@@ -83,17 +34,6 @@ impl CompressedProof {
 pub struct Reserves {
     pub reserves: u64,
 }
-
-// The report structure from the TNF should look like this:
-// {
-//     "name": "Display Name",
-//     "totalReserve": "1000000.00",
-//     "totalToken": "900000.00",
-//     "ripcord": false,  // fail - system records - tells the oracle to nnot a make an onchain update
-//     "ripcordDetails": [],
-//     "timestamp": "2024-08-02T12:00:00.000Z"
-//   }
-// Therefore let us emulate its structure in the ProofState struct
 
 #[derive(Debug)]
 pub struct ProofState {
