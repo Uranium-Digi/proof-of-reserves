@@ -197,7 +197,11 @@ export async function depositMintAuthority(
     }
 }
 
-async function main(uraniumTokenAddress?: string, useExistingProofOfReservesIdl?: boolean) {
+async function main(
+    deployTokenOnly: boolean = true,
+    uraniumTokenAddress?: string,
+    useExistingProofOfReservesIdl?: boolean,
+) {
     // Check if we're connected to testnet or devnet
     const endpoint = connection.rpcEndpoint
     console.log('endpoint', endpoint)
@@ -228,7 +232,7 @@ async function main(uraniumTokenAddress?: string, useExistingProofOfReservesIdl?
     let u: PublicKey
     let proofOfReservesIdl: any
 
-    if (!uraniumTokenAddress) {
+    if (!uraniumTokenAddress || deployTokenOnly) {
         await clearVanityDirectory()
         await generateVanityAddresses({
             startsWith: 'cake',
@@ -252,6 +256,10 @@ async function main(uraniumTokenAddress?: string, useExistingProofOfReservesIdl?
         u = new PublicKey(uraniumTokenAddress)
     }
     await writeUraniumTokenAddressToConfig(u.toBase58())
+
+    if (deployTokenOnly) {
+        return
+    }
 
     if (useExistingProofOfReservesIdl) {
         proofOfReservesIdl = JSON.parse(await fs.readFile(path.resolve(PROOF_OF_RESERVES_IDL_DIR), 'utf-8'))
