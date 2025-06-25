@@ -74,9 +74,9 @@ export const generateVanityAddresses = async (options: VanityOptions) => {
     let command = 'solana-keygen grind'
 
     // Add required count parameter
-    if (options.startsWith) {
+    if (options.startsWith && options.startsWith !== undefined) {
         command += ` --starts-with ${options.startsWith}:${options.count}`
-    } else if (options.endsWith) {
+    } else if (options.endsWith && options.endsWith !== undefined) {
         command += ` --ends-with ${options.endsWith}:${options.count}`
     } else if (options.startsAndEndsWith) {
         command += ` --starts-and-ends-with ${options.startsAndEndsWith.prefix}:${options.startsAndEndsWith.suffix}:${options.count}`

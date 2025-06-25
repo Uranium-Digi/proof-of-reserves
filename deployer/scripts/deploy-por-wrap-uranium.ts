@@ -39,16 +39,30 @@ async function writeUraniumTokenAddressToConfig(uraniumTokenAddress: string) {
     await fs.writeFile(configPath, configContent)
 }
 
-async function deployToken(vanityAddress?: Keypair): Promise<anchor.web3.Keypair> {
+async function deployToken(
+    config: {
+        name: string
+        symbol: string
+        description: string
+        imageUri: string
+        initialSupply: number
+    },
+    vanityAddress?: Keypair,
+): Promise<anchor.web3.Keypair> {
     console.log('\n🌟 🌟 🌟 deploying token with Metaplex! 🌟 🌟 🌟\n')
-    const tokenMint = await metaplexComplex.createAndMintTokensViaMetaplex(
-        'Sacre Bleu',
-        'BLUE',
-        'This is a lemon cake.',
-        'https://raw.githubusercontent.com/solana-developers/opos-asset/main/assets/CompressedCoil/image.png',
-        BigInt(1772352 * 10 ** 9),
-        vanityAddress ? metaplexComplex.convertAnchorKeypairToUmiKeypairSigner(vanityAddress) : undefined,
-    )
+
+    const vanitAddressToBeUsed = vanityAddress
+        ? metaplexComplex.convertAnchorKeypairToUmiKeypairSigner(vanityAddress)
+        : undefined
+
+    const tokenMint = await metaplexComplex.createAndMintTokensViaMetaplex({
+        name: config.name,
+        symbol: config.symbol,
+        description: config.description,
+        imageUri: config.imageUri,
+        initialSupply: BigInt(config.initialSupply * 10 ** 9),
+        vanityAddress: vanitAddressToBeUsed,
+    })
     await writeUraniumTokenAddressToConfig(tokenMint.publicKey.toString())
 
     console.log('Token deployed:', tokenMint.publicKey.toString())
@@ -198,9 +212,40 @@ export async function depositMintAuthority(
 }
 
 async function main(
-    deployTokenOnly: boolean = true,
-    uraniumTokenAddress?: string,
-    useExistingProofOfReservesIdl?: boolean,
+    {
+        deployTokenOnly,
+        uraniumTokenAddress,
+        useExistingProofOfReservesIdl,
+        startsWith,
+        endsWith,
+        name,
+        symbol,
+        description,
+        imageUri,
+        initialSupply,
+    }: {
+        deployTokenOnly: boolean
+        uraniumTokenAddress?: string
+        useExistingProofOfReservesIdl?: boolean
+        startsWith: string | undefined
+        endsWith: string | undefined
+        name: string
+        symbol: string
+        description: string
+        imageUri: string
+        initialSupply: number
+    } = {
+        deployTokenOnly: true,
+        uraniumTokenAddress: undefined,
+        useExistingProofOfReservesIdl: false,
+        startsWith: 'WAGA',
+        endsWith: 'SHI',
+        name: 'Wagashi',
+        symbol: 'WAGASHI',
+        description: 'This is a Wagashi.',
+        imageUri: 'https://raw.githubusercontent.com/Uranium-Digi/lemon-cake/refs/heads/main/namagashi.png',
+        initialSupply: 123,
+    },
 ) {
     // Check if we're connected to testnet or devnet
     const endpoint = connection.rpcEndpoint
@@ -235,8 +280,9 @@ async function main(
     if (!uraniumTokenAddress || deployTokenOnly) {
         await clearVanityDirectory()
         await generateVanityAddresses({
-            startsWith: 'cake',
-            count: 7,
+            startsWith,
+            endsWith,
+            count: 1,
             ignoreCase: true,
         })
         // fetch a vanity address from the .vanity directory
@@ -250,7 +296,17 @@ async function main(
             ),
         )
         console.log('vanityKeypair', vanityKeypair)
-        const tokenMint = await deployToken(vanityKeypair)
+
+        const tokenMint = await deployToken(
+            {
+                name,
+                symbol,
+                description,
+                imageUri,
+                initialSupply,
+            },
+            vanityKeypair,
+        )
         u = tokenMint.publicKey
     } else {
         u = new PublicKey(uraniumTokenAddress)
@@ -302,7 +358,16 @@ async function saveAddressesToFile(addresses: { u: string; configPda: string; pr
     console.log('\n📝 Addresses saved to:', addressesPath)
 }
 
-main()
+main({
+    deployTokenOnly: true,
+    startsWith: 'WAGA', // startsWith: 'WAGA',
+    endsWith: undefined, // endsWith: '1',
+    name: 'Wagashi',
+    symbol: 'WAGASHI',
+    description: 'This is a Wagashi.',
+    imageUri: 'https://raw.githubusercontent.com/Uranium-Digi/lemon-cake/refs/heads/main/namagashi.png',
+    initialSupply: 123,
+})
 
 // async function generateVanity() {
 //     const vanityAddresses = await generateVanityAddresses({
