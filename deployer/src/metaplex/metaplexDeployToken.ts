@@ -41,21 +41,30 @@ export default class MetaplexComplex {
         this.umi = setUpUmi()
     }
 
-    createTokenConfig = (
-        name: string,
-        symbol: string,
-        description: string,
-        imageUri: string,
-        initialSupply?: bigint,
-        vanityAddress?: KeypairSigner | undefined,
-    ) => {
+    createTokenConfig = ({
+        name,
+        symbol,
+        imageUri,
+        description,
+        decimals,
+        initialSupply,
+        vanityAddress,
+    }: {
+        name: string
+        symbol: string
+        imageUri: string
+        description: string
+        decimals: number
+        initialSupply: bigint
+        vanityAddress?: KeypairSigner | undefined
+    }) => {
         const tokenConfig: TokenConfig = {
             name: name,
             symbol: symbol,
             description: description,
             imageUri: imageUri,
-            decimals: 9,
-            initialSupply: initialSupply || BigInt(0),
+            decimals: decimals,
+            initialSupply: initialSupply,
             vanityAddress: vanityAddress,
         }
         return tokenConfig
@@ -63,17 +72,43 @@ export default class MetaplexComplex {
 
     // We need this to conform to this https://docs.solscan.io/integration/update-token-details
     createAndMintTokensViaMetaplex = async (
-        name: string = 'Lemon Cake',
-        symbol: string = 'LEMON',
-        description: string = 'This is a lemon cake.',
-        imageUri: string = 'https://raw.githubusercontent.com/Uranium-Digi/lemon-cake/refs/heads/main/0978fe9e1d7932debba36c233b4e34c7.jpg',
-        initialSupply: bigint = BigInt(0),
-        vanityAddress?: KeypairSigner | undefined,
+        {
+            name,
+            symbol,
+            description,
+            imageUri,
+            initialSupply,
+            vanityAddress,
+        }: {
+            name: string
+            symbol: string
+
+            description: string
+            imageUri: string
+            initialSupply: bigint
+            vanityAddress?: KeypairSigner | undefined
+        } = {
+            name: 'Lemon Cake',
+            symbol: ' CAKE',
+            description: 'This is a lemon cake.',
+            imageUri:
+                'https://raw.githubusercontent.com/Uranium-Digi/lemon-cake/refs/heads/main/0978fe9e1d7932debba36c233b4e34c7.jpg',
+            initialSupply: BigInt(0),
+            vanityAddress: undefined,
+        },
     ): Promise<KeypairSigner> => {
         // https://developers.metaplex.com/guides/javascript/how-to-create-a-solana-token
         const umi = await setUpUmi()
 
-        const tokenConfig = this.createTokenConfig(name, symbol, description, imageUri, initialSupply, vanityAddress)
+        const tokenConfig = this.createTokenConfig({
+            name,
+            symbol,
+            description,
+            imageUri,
+            decimals: 9,
+            initialSupply,
+            vanityAddress,
+        })
 
         // Airdrop 1 SOL to the identity
         // if you end up with a 429 too many requests error, you may have to use
@@ -164,17 +199,41 @@ export default class MetaplexComplex {
     }
 
     changeMetadata = async (
-        tokenAddress: string,
-        name: string = 'Lemon Cake',
-        symbol: string = 'LEMON',
-        description: string = 'This is a lemon cake.',
-        imageUri: string = 'https://raw.githubusercontent.com/Uranium-Digi/lemon-cake/refs/heads/main/0978fe9e1d7932debba36c233b4e34c7.jpg',
+        {
+            tokenAddress,
+            name,
+            symbol,
+            description,
+            imageUri,
+        }: {
+            tokenAddress: string
+            name?: string
+            symbol?: string
+            description?: string
+            imageUri?: string
+        } = {
+            tokenAddress: '',
+            name: 'Lemon Cake',
+            symbol: 'LEMON',
+            description: 'This is a lemon cake.',
+            imageUri:
+                'https://raw.githubusercontent.com/Uranium-Digi/lemon-cake/refs/heads/main/0978fe9e1d7932debba36c233b4e34c7.jpg',
+        },
     ) => {
         // https://developers.metaplex.com/guides/javascript/how-to-create-a-solana-token
         const umi = await setUpUmi()
         console.log('🔑 Umi signer (must be updateAuthority):', umi.identity.publicKey.toString())
 
-        const tokenConfig = this.createTokenConfig(name, symbol, description, imageUri)
+        const tokenConfig = this.createTokenConfig({
+            name: name || 'Lemon Cake',
+            symbol: symbol || 'LEMON',
+            imageUri:
+                imageUri ||
+                'https://raw.githubusercontent.com/Uranium-Digi/lemon-cake/refs/heads/main/0978fe9e1d7932debba36c233b4e34c7.jpg',
+            description: description || 'This is a lemon cake.',
+            decimals: 9,
+            initialSupply: BigInt(0),
+        })
         const mint = publicKey(tokenAddress)
 
         const metadata = {
