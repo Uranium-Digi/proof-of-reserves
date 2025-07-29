@@ -1,8 +1,10 @@
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use anchor_client::solana_sdk::compute_budget::ComputeBudgetInstruction;
 use anchor_client::solana_sdk::native_token::LAMPORTS_PER_SOL;
 use anchor_client::solana_sdk::signature::Signature;
+use anchor_client::solana_sdk::system_instruction::SystemInstruction;
 use anchor_client::Cluster;
 use anchor_client::{solana_sdk::signature::Keypair, Program};
 use anchor_lang::prelude::Pubkey;
@@ -69,6 +71,7 @@ impl Transmitter {
             .context("Snappy compression failed")?;
 
         let feed_id = raw_bytes[0..32].to_vec();
+
         Ok((compressed, feed_id))
     }
 
@@ -78,6 +81,7 @@ impl Transmitter {
             .clone()
             .try_into()
             .expect("feed_id must be 32 bytes");
+
         let time_now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap()
@@ -163,7 +167,13 @@ impl Transmitter {
             .instructions()?
             .remove(0);
 
-        let tx = self.program.request().instruction(verify_ix).send().await?;
+        let tx = self
+            .program
+            .request()
+            .instruction(ComputeBudgetInstruction::set_compute_unit_limit(500_000))
+            .instruction(verify_ix)
+            .send()
+            .await?;
 
         let compressed_proof_account: proof_of_reserves::CompressedProof =
             self.program.account(compressed_proof_account).await?;

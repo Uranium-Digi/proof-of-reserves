@@ -6,7 +6,7 @@ use anchor_spl::{
     token_interface::{Mint, TokenAccount},
 };
 
-use crate::{err::CustomError, structs::{CompressedProof, Config, Reserves}};
+use crate::{err::CustomError, structs::{CompressedProof, Config, Reserves}, INIT_AUTHORITY};
 
 // *********** Naming Convention ***********
 // {authority}_{is_pda}_{token}_{is_ata}
@@ -14,11 +14,12 @@ use crate::{err::CustomError, structs::{CompressedProof, Config, Reserves}};
 
 #[derive(Accounts)]
 pub struct Initialize<'info> {
-    #[account(mut)]
+    #[account(mut, constraint = signer.key() == INIT_AUTHORITY @ CustomError::YouAreNotAdmin)]
     pub signer: Signer<'info>,
 
     /// CHECK: mint is not dangerous because we don't read or write from this account
-    pub u: AccountInfo<'info>,
+    #[account(mint::decimals = 9)]
+    pub u: Box<InterfaceAccount<'info, Mint>>,
 
     #[account(
         init,
@@ -29,8 +30,6 @@ pub struct Initialize<'info> {
     )]
     pub config_pda: Box<Account<'info, Config>>,
 
-    pub token_program: Program<'info, Token>,
-    pub associated_token_program: Program<'info, AssociatedToken>,
     pub system_program: Program<'info, System>,
 }
 
@@ -88,7 +87,7 @@ pub struct SetConfig<'info> {
     )]
     pub config_pda: Box<Account<'info, Config>>,
 
-    #[account(mut, mint::decimals = 9)]
+    #[account(mint::decimals = 9)]
     pub u: Box<InterfaceAccount<'info, Mint>>,
 
     /// CHECK: This is not dangerous because we don't read or write from this account
@@ -240,10 +239,10 @@ pub struct Verify<'info> {
     /// CHECK: The account is validated by the verifier program.
     pub verifier_account: AccountInfo<'info>,
     /// The Access Controller Account
-    /// /// CHECK: The account strudcture is validated by the verifier program.
+    /// /// CHECK: The account structure is validated by the verifier program.
     pub access_controller: AccountInfo<'info>,
-    /// The account that signs the transaction.
-    /// CHECK: The mint is not dangerous because we don't read or write from this account
+
+    #[account(mint::decimals = 9)]
     pub u: Box<InterfaceAccount<'info, Mint>>,
 
     #[account(mut, constraint = user.key() == config_pda.update_authority.key() @ CustomError::YouAreNotUpdateAuthority)]
@@ -259,7 +258,8 @@ pub struct Verify<'info> {
     /// CHECK: the account is validated by the verifier program.
     pub verifier_config_account: AccountInfo<'info>,
     /// The Verifier Program ID specifies the target Chainlink Data Streams Verifier program
-    /// CHECK: The program ID is validated by the verifier program.
+    /// CHECK: The program ID is checked
+    #[account(constraint = verifier_program_id.key() == verifier::ID @ CustomError::InvalidProgramId)]
     pub verifier_program_id: AccountInfo<'info>,
     /// PDA that stores the last verified report
     #[account(
@@ -271,11 +271,12 @@ pub struct Verify<'info> {
     )]
     pub compressed_proof: Account<'info, CompressedProof>, // should be an account
 
-    #[account(init_if_needed,
+    #[account(
+        init_if_needed,
         seeds=[b"reserves", u.key().as_ref()],
         bump,
         payer = user,
-        space = 8 + 8,
+        space = 8 + 8 + 9,
     )]
     pub reserves: Account<'info, Reserves>,
     pub system_program: Program<'info, System>,
@@ -286,8 +287,8 @@ pub struct ReservesContext<'info> {
     #[account(mut, constraint = signer.key() == config_pda.update_authority @ CustomError::YouAreNotUpdateAuthority)]
     pub signer: Signer<'info>,
 
-    /// CHECK: mint is not dangerous because we don't read or write from this account
-    pub u: AccountInfo<'info>,
+    #[account(mint::decimals = 9)]
+    pub u: Box<InterfaceAccount<'info, Mint>>,
 
     #[account(
         mut,

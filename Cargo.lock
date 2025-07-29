@@ -4309,6 +4309,7 @@ dependencies = [
  "spl-tlv-account-resolution 0.10.0",
  "spl-transfer-hook-interface 0.10.0",
  "spl-type-length-value 0.8.0",
+ "verifier",
 ]
 
 [[package]]

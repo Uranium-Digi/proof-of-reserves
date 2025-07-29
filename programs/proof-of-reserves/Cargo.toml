@@ -31,3 +31,4 @@ hex="0.4"
 # chainlink
 chainlink_solana_data_streams = { workspace = true }
 chainlink-data-streams-report = { workspace = true }
+verifier = { git = "https://github.com/Uranium-Digi/chainlink-data-streams-solana.git", subdir="programs/verifier", features=["no-entrypoint"]}
