@@ -189,7 +189,6 @@ async fn init_chainlink_verifier(signer: &Keypair) -> Pubkey {
 }
 
 #[tokio::test]
-// #[test]
 async fn test_initialize() {
     let program_id = proof_of_reserves::ID;
     let anchor_wallet = std::env::var(WALLET_KEY).unwrap();
@@ -308,11 +307,14 @@ async fn test_initialize() {
                     signer: signer.pubkey(),
                     u: u.pubkey(),
                     config_pda,
-                    token_program: spl_token::ID,
-                    associated_token_program: spl_associated_token_account::ID,
                     system_program: solana_program::system_program::ID,
                 })
-                .args(proof_of_reserves::instruction::Initialize {})
+                .args(proof_of_reserves::instruction::Initialize {
+                    feed_id: vec![
+                        0, 3, 104, 78, 169, 60, 67, 237, 123, 208, 10, 179, 187, 24, 155, 182, 47,
+                        136, 4, 54, 88, 159, 28, 165, 139, 89, 156, 217, 125, 96, 7, 251,
+                    ],
+                })
                 .instructions()
                 .unwrap(),
         );
@@ -360,6 +362,100 @@ async fn test_initialize() {
         )
         .await
         .unwrap();
+    }
+
+    println!("Set Config to bad values");
+    {
+        let mut ixs = vec![];
+        ixs.append(
+            &mut program
+                .request()
+                .accounts(proof_of_reserves::accounts::SetConfig {
+                    signer: signer.pubkey(),
+                    config_pda,
+                    u: u.pubkey(),
+                    new_authority: signer.pubkey(),
+                    new_issue_authority: u.pubkey(),
+                    new_redeem_authority: u.pubkey(),
+                })
+                .args(proof_of_reserves::instruction::SetAppConfig {
+                    new_issuance_fee_rate: 1u16,
+                    new_redemption_fee_rate: 1u16,
+                    feed_id: [0u8; 32].to_vec(),
+                })
+                .instructions()
+                .unwrap(),
+        );
+        send_tx(&rpc, ixs, &signer.pubkey(), &[&signer]).await;
+    }
+
+    println!("Set Config to good values");
+    {
+        let mut ixs = vec![];
+        ixs.append(
+            &mut program
+                .request()
+                .accounts(proof_of_reserves::accounts::SetConfig {
+                    signer: signer.pubkey(),
+                    config_pda,
+                    u: u.pubkey(),
+                    new_authority: signer.pubkey(),
+                    new_issue_authority: signer.pubkey(),
+                    new_redeem_authority: signer.pubkey(),
+                })
+                .args(proof_of_reserves::instruction::SetAppConfig {
+                    new_issuance_fee_rate: 0u16,
+                    new_redemption_fee_rate: 0u16,
+                    feed_id: vec![
+                        0, 3, 104, 78, 169, 60, 67, 237, 123, 208, 10, 179, 187, 24, 155, 182, 47,
+                        136, 4, 54, 88, 159, 28, 165, 139, 89, 156, 217, 125, 96, 7, 251,
+                    ],
+                })
+                .instructions()
+                .unwrap(),
+        );
+        send_tx(&rpc, ixs, &signer.pubkey(), &[&signer]).await;
+    }
+
+    println!("Withdraw Mint Authority");
+    {
+        let mut ixs = vec![];
+
+        ixs.append(
+            &mut program
+                .request()
+                .accounts(proof_of_reserves::accounts::WithdrawMintAuthority {
+                    signer: signer.pubkey(),
+                    config_pda,
+                    u: u.pubkey(),
+                    token_program: spl_token::ID,
+                })
+                .args(proof_of_reserves::instruction::WithdrawMintAuthority {})
+                .instructions()
+                .unwrap(),
+        );
+
+        send_tx(&rpc, ixs, &signer.pubkey(), &[&signer]).await;
+    }
+    println!("Deposit Mint Authority again");
+    {
+        let mut ixs = vec![];
+
+        ixs.append(
+            &mut program
+                .request()
+                .accounts(proof_of_reserves::accounts::DepositMintAuthority {
+                    signer: signer.pubkey(),
+                    config_pda,
+                    u: u.pubkey(),
+                    token_program: spl_token::ID,
+                })
+                .args(proof_of_reserves::instruction::DepositMintAuthority {})
+                .instructions()
+                .unwrap(),
+        );
+
+        send_tx(&rpc, ixs, &signer.pubkey(), &[&signer]).await;
     }
 
     println!("Verify");

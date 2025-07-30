@@ -13,6 +13,10 @@ pub use structs::*;
 
 declare_id!("GaAH3oNQ7TD3egXSfies5tBPDctXjoLLuUfnGSzwtDsF");
 
+// FIXME: *** Change this to your own address before deploying ***
+const INIT_AUTHORITY: Pubkey =
+    Pubkey::from_str_const("J95RQ3xwY8duqzWqWVm7K3RyJmPGoJHZYwFFs1puMmQt");
+
 #[program]
 pub mod proof_of_reserves {
     use anchor_lang::solana_program::program::{get_return_data, invoke};
@@ -32,13 +36,14 @@ pub mod proof_of_reserves {
 
     use super::*;
 
-    pub fn initialize(ctx: Context<Initialize>) -> Result<()> {
+    pub fn initialize(ctx: Context<Initialize>, feed_id: Vec<u8>) -> Result<()> {
         ctx.accounts.config_pda.authority = ctx.accounts.signer.key();
         ctx.accounts.config_pda.update_authority = ctx.accounts.signer.key();
         ctx.accounts.config_pda.issue_authority = ctx.accounts.signer.key();
         ctx.accounts.config_pda.redeem_authority = ctx.accounts.signer.key();
         ctx.accounts.config_pda.issuance_fee_rate = 0;
         ctx.accounts.config_pda.redemption_fee_rate = 0;
+        ctx.accounts.config_pda.feed_id = feed_id[..32].try_into().unwrap();
         Ok(())
     }
 
@@ -46,12 +51,17 @@ pub mod proof_of_reserves {
         ctx: Context<SetConfig>,
         new_issuance_fee_rate: u16,
         new_redemption_fee_rate: u16,
+        feed_id: Vec<u8>,
     ) -> Result<()> {
+        if new_issuance_fee_rate > 10_000 || new_redemption_fee_rate > 10_000 {
+            return Err(CustomError::InvalidFeeRate.into());
+        }
         ctx.accounts.config_pda.authority = ctx.accounts.new_authority.key();
         ctx.accounts.config_pda.issue_authority = ctx.accounts.new_issue_authority.key();
         ctx.accounts.config_pda.redeem_authority = ctx.accounts.new_redeem_authority.key();
         ctx.accounts.config_pda.issuance_fee_rate = new_issuance_fee_rate;
         ctx.accounts.config_pda.redemption_fee_rate = new_redemption_fee_rate;
+        ctx.accounts.config_pda.feed_id = feed_id[..32].try_into().unwrap();
         Ok(())
     }
 
@@ -127,6 +137,7 @@ pub mod proof_of_reserves {
         )?;
 
         emit!(IssueEvent {
+            mint: ctx.accounts.u.key().to_string(),
             gross_issue,
             issuance_fee,
             issuance_id,
@@ -197,6 +208,7 @@ pub mod proof_of_reserves {
         )?;
 
         emit!(RedeemEvent {
+            mint: ctx.accounts.u.key().to_string(),
             gross_redeem,
             redemption_fee,
             redemption_id,
@@ -287,7 +299,7 @@ pub mod proof_of_reserves {
             let compressed_proof_account = &mut ctx.accounts.compressed_proof;
             compressed_proof_account.compressed_proof = compressed_proof;
             // Log report fields
-            msg!("FeedId: {}", report.feed_id);
+            msg!("FeedId: {:?}", report.feed_id.0);
             msg!("Valid from timestamp: {}", report.valid_from_timestamp);
             msg!("Observations Timestamp: {}", report.observations_timestamp);
             msg!("Native Fee: {}", report.native_fee);
@@ -306,13 +318,25 @@ pub mod proof_of_reserves {
             let proof_state = compressed_proof_account.decode()?;
             msg!("Proof State: {:?}", proof_state);
 
+            assert!(ctx.accounts.u.supply <= proof_state.total_reserves);
+
             let reserves_account = &mut ctx.accounts.reserves;
             let reserves_prev = reserves_account.reserves;
+            if ctx.accounts.config_pda.feed_id != report.feed_id.0 {
+                return Err(error!(CustomError::InvalidReportData));
+            }
+            if let Some(last_update) = reserves_account.last_updated {
+                if last_update >= report.observations_timestamp as i64 {
+                    return Err(error!(CustomError::InvalidReportData));
+                }
+            }
+            reserves_account.last_updated = Some(report.observations_timestamp as i64);
             reserves_account.reserves = proof_state.total_reserves;
 
             msg!("Reserves Account: {:?}", reserves_account);
 
             emit!(VerifyEvent {
+                mint: ctx.accounts.u.key().to_string(),
                 total_reserves: reserves_account.reserves,
                 total_reserves_prev: reserves_prev,
                 total_supply: ctx.accounts.u.supply,

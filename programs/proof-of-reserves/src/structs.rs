@@ -11,6 +11,7 @@ pub struct Config {
     pub update_authority: Pubkey,
     pub issuance_fee_rate: u16,
     pub redemption_fee_rate: u16,
+    pub feed_id: [u8; 32],
     pub padding: [u8; 64],
 }
 
@@ -33,6 +34,7 @@ impl CompressedProof {
 #[derive(Debug)]
 pub struct Reserves {
     pub reserves: u64,
+    pub last_updated: Option<i64>,
 }
 
 #[derive(Debug)]

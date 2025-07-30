@@ -13,4 +13,6 @@ pub enum CustomError {
     NoReportData,
     InvalidUtf8String,
     InvalidHexString,
+    InvalidFeeRate,
+    InvalidProgramId,
 }

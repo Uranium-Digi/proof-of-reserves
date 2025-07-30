@@ -1,7 +1,10 @@
-run `cargo test test_proof_state_encoding_decoding -- --nocapture` in `oracle-updater/programs/oracle-updater` directory to test individually.
+**Update the `INIT_AUTHORITY` in `programs/proof-of-reserves/src/lib.rs` before deploying**
 
-To deploy the oracle-updater
-`anchor deploy -p oracle-updater --provider.cluster devnet`
+To deploy the proof of reserves program
+```bash
+anchor deploy  --provider.cluster devnet
+```
 
 To run the transmitter
 `cargo run --bin transmitter`
+
