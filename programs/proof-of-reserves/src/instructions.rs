@@ -284,7 +284,7 @@ pub struct Verify<'info> {
 
 #[derive(Accounts)]
 pub struct ReservesContext<'info> {
-    #[account(mut, constraint = signer.key() == config_pda.update_authority @ CustomError::YouAreNotUpdateAuthority)]
+    #[account(mut, constraint = signer.key() == config_pda.authority @ CustomError::YouAreNotUpdateAuthority)]
     pub signer: Signer<'info>,
 
     #[account(mint::decimals = 9)]
