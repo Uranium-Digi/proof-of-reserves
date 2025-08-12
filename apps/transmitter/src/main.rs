@@ -37,7 +37,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let access_controller_program_id = Pubkey::from_str(&app_config.access_controller_program_id)
         .expect("Invalid Access Controller Program ID");
     let u_address = Pubkey::from_str(&app_config.u_address).expect("Invalid U Address");
-    let access_controller_data_account = Pubkey::from_str(&app_config.access_controller_data_account).expect("Invalid Access Controller Data Account");
+    let access_controller_data_account =
+        Pubkey::from_str(&app_config.access_controller_data_account)
+            .expect("Invalid Access Controller Data Account");
 
     // create transmitter
     let transmitter = Transmitter::new(
@@ -61,6 +63,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
     Ok(())
 }
+
 // async fn main() -> Result<(), Box<dyn std::error::Error>> {
 //     dotenv::dotenv().ok(); // loads .env file automatically
 

@@ -1,6 +1,7 @@
 use chainlink_data_streams_report::{
     feed_id::ID,
-    report::{decode_full_report, v3::ReportDataV3, Report},
+    // report::{decode_full_report, v3::ReportDataV3, Report},
+    report::{decode_full_report, v9::ReportDataV9, Report},
 };
 use chainlink_data_streams_sdk::{client::Client, config::Config};
 use tracing::{debug, error};
@@ -30,7 +31,7 @@ pub async fn run(
 
     let full_report = hex::decode(&response.report.full_report[2..])?;
     let (_report_context, report_blob) = decode_full_report(&full_report)?;
-    let report_data = ReportDataV3::decode(&report_blob)?;
+    let report_data = ReportDataV9::decode(&report_blob)?;
 
     debug!("Decoded Report for Stream ID {}:", app_config.feed_id);
     debug!("Report.report: {:#?}", response.report);

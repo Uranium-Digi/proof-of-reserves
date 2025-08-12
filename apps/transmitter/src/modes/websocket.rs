@@ -1,6 +1,7 @@
 use chainlink_data_streams_report::{
     feed_id::ID,
-    report::{decode_full_report, v3::ReportDataV3},
+    // report::{decode_full_report, v3::ReportDataV3},
+    report::{decode_full_report, v9::ReportDataV9},
 };
 use chainlink_data_streams_sdk::{config::Config, stream::Stream};
 use std::{sync::Arc, time::Duration};
@@ -55,8 +56,8 @@ pub async fn run(
                     error!("Error decoding full report");
                     continue;
                 };
-                let Ok(report_data) = ReportDataV3::decode(&report_blob) else {
-                    error!("Error decoding report into ReportDataV3");
+                let Ok(report_data) = ReportDataV9::decode(&report_blob) else {
+                    error!("Error decoding report into ReportDataV9");
                     continue;
                 };
 
