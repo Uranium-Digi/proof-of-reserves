@@ -25,8 +25,12 @@ pub mod proof_of_reserves {
         burn, mint_to, set_authority, spl_token::instruction::AuthorityType, transfer_checked,
         Burn, MintTo, SetAuthority, TransferChecked,
     };
-    use chainlink_data_streams_report::report::v3::ReportDataV3;
+    // use chainlink_data_streams_report::report::v3::ReportDataV3;
+    // use chainlink_solana_data_streams::VerifierInstructions;
+
+    use chainlink_data_streams_report::report::v9::ReportDataV9;
     use chainlink_solana_data_streams::VerifierInstructions;
+
     use spl_tlv_account_resolution::solana_instruction::Instruction;
 
     use crate::{
@@ -255,8 +259,6 @@ pub mod proof_of_reserves {
         Ok(())
     }
 
-    /// Verifies a Data Streams report using Cross-Program Invocation to the Verifier program
-    /// Returns the decoded report data if verification succeeds
     pub fn verify(
         ctx: Context<Verify>,
         signed_report: Vec<u8>,
@@ -292,7 +294,7 @@ pub mod proof_of_reserves {
         // Decode and log the verified report data
         if let Some((_program_id, return_data)) = get_return_data() {
             msg!("Report data found!");
-            let report = ReportDataV3::decode(&return_data)
+            let report = ReportDataV9::decode(&return_data)
                 .map_err(|_| error!(CustomError::InvalidReportData))?;
 
             // The ProofState struct compressed must be constructed prior
@@ -305,9 +307,9 @@ pub mod proof_of_reserves {
             msg!("Native Fee: {}", report.native_fee);
             msg!("Link Fee: {}", report.link_fee);
             msg!("Expires At: {}", report.expires_at);
-            msg!("Benchmark Price: {}", report.benchmark_price);
-            msg!("Bid: {}", report.bid);
-            msg!("Ask: {}", report.ask);
+            msg!("Nav Per Share (N/A, set to 0): {}", report.nav_per_share);
+            msg!("Nav Date (timestamp): {}", report.nav_date);
+            msg!("AUM (totalReserve): {}", report.aum);
 
             // // log the proof state
             msg!(
@@ -349,6 +351,89 @@ pub mod proof_of_reserves {
 
         Ok(())
     }
+
+    /// Verifies a Data Streams report using Cross-Program Invocation to the Verifier program
+    /// Returns the decoded report data if verification succeeds
+    // pub fn verify(
+    //     ctx: Context<Verify>,
+    //     signed_report: Vec<u8>,
+    //     compressed_proof: Vec<u8>,
+    // ) -> Result<()> {
+    //     let program_id = ctx.accounts.verifier_program_id.key();
+    //     let verifier_account = ctx.accounts.verifier_account.key();
+    //     let access_controller = ctx.accounts.access_controller.key();
+    //     let user = ctx.accounts.user.key();
+    //     let config_account = ctx.accounts.verifier_config_account.key();
+
+    //     // Create verification instruction
+    //     let chainlink_ix: Instruction = VerifierInstructions::verify(
+    //         &program_id,
+    //         &verifier_account,
+    //         &access_controller,
+    //         &user,
+    //         &config_account,
+    //         signed_report,
+    //     );
+
+    //     // Invoke the Verifier program
+    //     invoke(
+    //         &chainlink_ix,
+    //         &[
+    //             ctx.accounts.verifier_account.to_account_info(),
+    //             ctx.accounts.access_controller.to_account_info(),
+    //             ctx.accounts.user.to_account_info(),
+    //             ctx.accounts.verifier_config_account.to_account_info(),
+    //         ],
+    //     )?;
+
+    //     // Decode and log the verified report data
+    //     if let Some((_program_id, return_data)) = get_return_data() {
+    //         msg!("Report data found!");
+    //         let report = ReportDataV3::decode(&return_data)
+    //             .map_err(|_| error!(CustomError::InvalidReportData))?;
+
+    //         // The ProofState struct compressed must be constructed prior
+    //         let compressed_proof_account = &mut ctx.accounts.compressed_proof;
+    //         compressed_proof_account.compressed_proof = compressed_proof;
+    //         // Log report fields
+    //         msg!("FeedId: {}", report.feed_id);
+    //         msg!("Valid from timestamp: {}", report.valid_from_timestamp);
+    //         msg!("Observations Timestamp: {}", report.observations_timestamp);
+    //         msg!("Native Fee: {}", report.native_fee);
+    //         msg!("Link Fee: {}", report.link_fee);
+    //         msg!("Expires At: {}", report.expires_at);
+    //         msg!("Benchmark Price: {}", report.benchmark_price);
+    //         msg!("Bid: {}", report.bid);
+    //         msg!("Ask: {}", report.ask);
+
+    //         // // log the proof state
+    //         msg!(
+    //             "Compressed Proof: {:?}",
+    //             compressed_proof_account.compressed_proof.clone()
+    //         );
+
+    //         let proof_state = compressed_proof_account.decode()?;
+    //         msg!("Proof State: {:?}", proof_state);
+
+    //         let reserves_account = &mut ctx.accounts.reserves;
+    //         let reserves_prev = reserves_account.reserves;
+    //         reserves_account.reserves = proof_state.total_reserves;
+
+    //         msg!("Reserves Account: {:?}", reserves_account);
+
+    //         emit!(VerifyEvent {
+    //             total_reserves: reserves_account.reserves,
+    //             total_reserves_prev: reserves_prev,
+    //             total_supply: ctx.accounts.u.supply,
+    //             created_at: Clock::get().unwrap().unix_timestamp,
+    //         });
+    //     } else {
+    //         msg!("No report data found!");
+    //         return Err(error!(CustomError::NoReportData));
+    //     }
+
+    //     Ok(())
+    // }
 
     // tells you the current reserves amount
     pub fn reserve_amount(ctx: Context<ReservesContext>) -> Result<()> {
