@@ -23,7 +23,11 @@ anchor-lang = "0.31.1"
 anchor-client = "0.31.1"
 anchor-spl = "0.31.1"
 
-chainlink_solana_data_streams = { git = "https://github.com/smartcontractkit/chainlink-data-streams-solana.git", subdir = "crates/chainlink-solana-data-streams" }
-#chainlink-data-streams-report = { git = "https://github.com/smartcontractkit/data-streams-sdk.git", subdir = "rust/crates/report" }
-chainlink-data-streams-report = "1.0.0"
+chainlink_solana_data_streams = { git = "https://github.com/smartcontractkit/chainlink-data-streams-solana", subdir = "crates/chainlink-solana-data-streams", tag = "v1.1.0" }
+chainlink-data-streams-report = "1.0.3"
 chainlink-data-streams-sdk = "1.0.0"
+
+#chainlink_solana_data_streams = { git = "https://github.com/smartcontractkit/chainlink-data-streams-solana.git", subdir = "crates/chainlink-solana-data-streams" }
+##chainlink-data-streams-report = { git = "https://github.com/smartcontractkit/data-streams-sdk.git", subdir = "rust/crates/report" }
+#chainlink-data-streams-report = "1.0.0"
+#chainlink-data-streams-sdk = "1.0.0"
