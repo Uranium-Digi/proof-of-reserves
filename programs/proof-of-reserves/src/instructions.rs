@@ -226,6 +226,9 @@ pub struct Redeem<'info> {
     )]
     pub company_wallet_u_ata:Box<InterfaceAccount<'info, TokenAccount>>,
 
+    #[account(mut, seeds = [b"reserves", u.key().as_ref()], bump)]
+    pub reserves_pda: Box<Account<'info, Reserves>>,
+    
     pub token_program: Program<'info, Token>,
     pub associated_token_program: Program<'info, AssociatedToken>,
     pub system_program: Program<'info, System>,

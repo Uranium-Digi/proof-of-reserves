@@ -72,8 +72,15 @@ pub mod proof_of_reserves {
     pub fn issue(ctx: Context<Issue>, gross_issue: u64, issuance_id: String) -> Result<()> {
         let supply = ctx.accounts.u.supply;
         let new_supply = supply.checked_add(gross_issue).unwrap(); // error if overflow
-        let reserved = ctx.accounts.reserves_pda.reserves;
-        if new_supply > reserved {
+                                                                   // let reserved = ctx.accounts.reserves_pda.reserves;
+        let effective_reserves = ctx
+            .accounts
+            .reserves_pda
+            .reserves
+            .checked_sub(ctx.accounts.reserves_pda.pending_redemptions)
+            .unwrap(); // error if underflow
+
+        if new_supply > effective_reserves {
             return Err(CustomError::InsufficientReserves.into());
         }
         // calculate fees now
@@ -157,6 +164,10 @@ pub mod proof_of_reserves {
             gross_redeem,
             ctx.accounts.config_pda.redemption_fee_rate as u64,
         )?;
+        // add to pending_redemptions
+        let pending_redemptions = ctx.accounts.reserves_pda.pending_redemptions;
+        ctx.accounts.reserves_pda.pending_redemptions =
+            pending_redemptions.checked_add(redeemable).unwrap(); // redeemable not gross_redeem
 
         // Transfer the U token from the signer U ata to the redemption wallet pda U ata
         transfer_checked(
@@ -334,7 +345,8 @@ pub mod proof_of_reserves {
             }
             reserves_account.last_updated = Some(report.observations_timestamp as i64);
             reserves_account.reserves = proof_state.total_reserves;
-
+            // clear the pending_redemptions after updating the reserves
+            reserves_account.pending_redemptions = 0;
             msg!("Reserves Account: {:?}", reserves_account);
 
             emit!(VerifyEvent {

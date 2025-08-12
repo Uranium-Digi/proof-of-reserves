@@ -35,6 +35,8 @@ impl CompressedProof {
 pub struct Reserves {
     pub reserves: u64,
     pub last_updated: Option<i64>,
+    pub pending_redemptions: u64,
+    pub padding: [u8; 64],
 }
 
 #[derive(Debug)]
