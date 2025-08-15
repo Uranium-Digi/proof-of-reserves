@@ -27,6 +27,8 @@ spl-type-length-value = "0.8.0"
 spl-pod = "0.5.0"
 bytemuck = "1.22.0"
 hex="0.4"
+num-bigint = "0.4"
+num-traits = "0.2"
 
 # chainlink
 chainlink_solana_data_streams = { workspace = true }

@@ -162,7 +162,6 @@ impl Transmitter {
             .accounts(account)
             .args(proof_of_reserves::instruction::Verify {
                 signed_report: compressed_report,
-                compressed_proof: compressed_proof.compressed_proof,
             })
             .instructions()?
             .remove(0);

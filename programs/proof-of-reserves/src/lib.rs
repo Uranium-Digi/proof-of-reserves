@@ -31,6 +31,8 @@ pub mod proof_of_reserves {
     use chainlink_data_streams_report::report::v9::ReportDataV9;
     use chainlink_solana_data_streams::VerifierInstructions;
 
+    use num_bigint::BigInt;
+    use num_traits::ToPrimitive;
     use spl_tlv_account_resolution::solana_instruction::Instruction;
 
     use crate::{
@@ -270,16 +272,13 @@ pub mod proof_of_reserves {
         Ok(())
     }
 
-    pub fn verify(
-        ctx: Context<Verify>,
-        signed_report: Vec<u8>,
-        compressed_proof: Vec<u8>,
-    ) -> Result<()> {
+    pub fn verify(ctx: Context<Verify>, signed_report: Vec<u8>) -> Result<()> {
         let program_id = ctx.accounts.verifier_program_id.key();
         let verifier_account = ctx.accounts.verifier_account.key();
         let access_controller = ctx.accounts.access_controller.key();
         let user = ctx.accounts.user.key();
         let config_account = ctx.accounts.verifier_config_account.key();
+        let now = Clock::get().unwrap().unix_timestamp;
 
         // Create verification instruction
         let chainlink_ix: Instruction = VerifierInstructions::verify(
@@ -307,10 +306,14 @@ pub mod proof_of_reserves {
             msg!("Report data found!");
             let report = ReportDataV9::decode(&return_data)
                 .map_err(|_| error!(CustomError::InvalidReportData))?;
+            let reserve = report
+                .aum
+                // The AUM is in 18 decimals, but the reserves are in 9 decimals
+                .checked_div(&BigInt::from(10u32.pow(9)))
+                .unwrap()
+                .to_u64()
+                .unwrap();
 
-            // The ProofState struct compressed must be constructed prior
-            let compressed_proof_account = &mut ctx.accounts.compressed_proof;
-            compressed_proof_account.compressed_proof = compressed_proof;
             // Log report fields
             msg!("FeedId: {:?}", report.feed_id.0);
             msg!("Valid from timestamp: {}", report.valid_from_timestamp);
@@ -321,30 +324,31 @@ pub mod proof_of_reserves {
             msg!("Nav Per Share (N/A, set to 0): {}", report.nav_per_share);
             msg!("Nav Date (timestamp): {}", report.nav_date);
             msg!("AUM (totalReserve): {}", report.aum);
+            msg!("Proof State: {:?}", reserve);
 
-            // // log the proof state
-            msg!(
-                "Compressed Proof: {:?}",
-                compressed_proof_account.compressed_proof.clone()
-            );
-
-            let proof_state = compressed_proof_account.decode()?;
-            msg!("Proof State: {:?}", proof_state);
-
-            assert!(ctx.accounts.u.supply <= proof_state.total_reserves);
+            assert!(ctx.accounts.u.supply <= reserve);
 
             let reserves_account = &mut ctx.accounts.reserves;
-            let reserves_prev = reserves_account.reserves;
+
             if ctx.accounts.config_pda.feed_id != report.feed_id.0 {
                 return Err(error!(CustomError::InvalidReportData));
             }
+
             if let Some(last_update) = reserves_account.last_updated {
                 if last_update >= report.observations_timestamp as i64 {
                     return Err(error!(CustomError::InvalidReportData));
                 }
             }
+
+            if report.valid_from_timestamp > now as u32 {
+                return Err(error!(CustomError::InvalidReportData));
+            }
+
+            let reserves_account = &mut ctx.accounts.reserves;
+            let reserves_prev = reserves_account.reserves;
+
+            reserves_account.reserves = reserve;
             reserves_account.last_updated = Some(report.observations_timestamp as i64);
-            reserves_account.reserves = proof_state.total_reserves;
             // clear the pending_redemptions after updating the reserves
             reserves_account.pending_redemptions = 0;
             msg!("Reserves Account: {:?}", reserves_account);

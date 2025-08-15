@@ -6,6 +6,7 @@ use app_config::AppConfig;
 use modes::websocket;
 
 use tracing::info;
+use tracing_subscriber::EnvFilter;
 use transmitter::transmitter::Transmitter;
 
 pub mod app_config;
@@ -18,9 +19,14 @@ use std::sync::Arc;
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Initialize logging with UTC timestamps
-    tracing_subscriber::fmt()
-        .with_max_level(tracing::Level::INFO)
-        .init();
+    if let Ok(level) = std::env::var("RUST_LOG") {
+        tracing_subscriber::fmt()
+            .with_env_filter(EnvFilter::new(&format!(
+                "{}={level}",
+                env!("CARGO_PKG_NAME").replace("-", "_"),
+            )))
+            .init();
+    }
     // load app config
     let app_config = AppConfig::new().await;
 

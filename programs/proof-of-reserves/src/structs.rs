@@ -50,9 +50,6 @@ pub struct ProofState {
 }
 
 impl ProofState {
-    pub const DEFAULT_FEED_ID: &'static str =
-        "0x000359843a543ee2fe414dc14c7e7920ef10f4372990b79d6361cdc0dd1ba782";
-
     pub fn encode(&self, feed_id: &[u8; 32]) -> Vec<u8> {
         // pub fn convert_to_hex_string_with_feed_id(&self, feed_id: &[u8; 32]) -> String {
         let mut bytes = Vec::new();

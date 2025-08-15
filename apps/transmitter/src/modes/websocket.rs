@@ -32,11 +32,15 @@ pub async fn run(
         // loop to reconnect, if the stream is closed
         loop {
             let feed_ids = vec![ID::from_hex_str(&feed_id).expect("Invalid feed ID")];
-            let Ok(mut stream) = Stream::new(&config, feed_ids).await else {
-                error!("Error creating stream");
-                sleep(Duration::from_secs(5)).await;
-                continue;
+            let mut stream = match Stream::new(&config, feed_ids).await {
+                Ok(stream) => stream,
+                Err(e) => {
+                    error!("Error creating stream: {}", e);
+                    sleep(Duration::from_secs(5)).await;
+                    continue;
+                }
             };
+
             if let Err(e) = stream.listen().await {
                 error!("Error listening to stream: {}", e);
                 sleep(Duration::from_secs(5)).await;

@@ -48,7 +48,7 @@ fn default_chainlink_feed_url() -> String {
 }
 
 fn default_chainlink_feed_url_ws() -> String {
-    "wss://api.testnet-dataengine.chain.link".to_string()
+    "wss://ws.testnet-dataengine.chain.link".to_string()
 }
 
 fn default_program_id() -> String {
@@ -68,7 +68,7 @@ fn default_rpc_url() -> String {
 }
 
 fn default_feed_id() -> String {
-    "0x000359843a543ee2fe414dc14c7e7920ef10f4372990b79d6361cdc0dd1ba782".to_string()
+    "0x0009de5ffad036d889d1bef8f402ee67370b1fbdfd491d07bf0a8666b031552a".to_string()
 }
 
 fn default_u_address() -> String {
