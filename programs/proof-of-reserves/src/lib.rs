@@ -302,154 +302,65 @@ pub mod proof_of_reserves {
         )?;
 
         // Decode and log the verified report data
-        if let Some((_program_id, return_data)) = get_return_data() {
-            msg!("Report data found!");
-            let report = ReportDataV9::decode(&return_data)
-                .map_err(|_| error!(CustomError::InvalidReportData))?;
-            let reserve = report
-                .aum
-                // The AUM is in 18 decimals, but the reserves are in 9 decimals
-                .checked_div(&BigInt::from(10u32.pow(9)))
-                .unwrap()
-                .to_u64()
-                .unwrap();
-
-            // Log report fields
-            msg!("FeedId: {:?}", report.feed_id.0);
-            msg!("Valid from timestamp: {}", report.valid_from_timestamp);
-            msg!("Observations Timestamp: {}", report.observations_timestamp);
-            msg!("Native Fee: {}", report.native_fee);
-            msg!("Link Fee: {}", report.link_fee);
-            msg!("Expires At: {}", report.expires_at);
-            msg!("Nav Per Share (N/A, set to 0): {}", report.nav_per_share);
-            msg!("Nav Date (timestamp): {}", report.nav_date);
-            msg!("AUM (totalReserve): {}", report.aum);
-            msg!("Proof State: {:?}", reserve);
-
-            assert!(ctx.accounts.u.supply <= reserve);
-
-            let reserves_account = &mut ctx.accounts.reserves;
-
-            if ctx.accounts.config_pda.feed_id != report.feed_id.0 {
-                return Err(error!(CustomError::InvalidReportData));
-            }
-
-            if let Some(last_update) = reserves_account.last_updated {
-                if last_update >= report.observations_timestamp as i64 {
-                    return Err(error!(CustomError::InvalidReportData));
-                }
-            }
-
-            if report.valid_from_timestamp > now as u32 {
-                return Err(error!(CustomError::InvalidReportData));
-            }
-
-            let reserves_account = &mut ctx.accounts.reserves;
-            let reserves_prev = reserves_account.reserves;
-
-            reserves_account.reserves = reserve;
-            reserves_account.last_updated = Some(report.observations_timestamp as i64);
-            // clear the pending_redemptions after updating the reserves
-            reserves_account.pending_redemptions = 0;
-            msg!("Reserves Account: {:?}", reserves_account);
-
-            emit!(VerifyEvent {
-                mint: ctx.accounts.u.key().to_string(),
-                total_reserves: reserves_account.reserves,
-                total_reserves_prev: reserves_prev,
-                total_supply: ctx.accounts.u.supply,
-                created_at: Clock::get().unwrap().unix_timestamp,
-            });
-        } else {
+        let Some((_program_id, return_data)) = get_return_data() else {
             msg!("No report data found!");
             return Err(error!(CustomError::NoReportData));
+        };
+
+        let compressed_proof_account = &mut ctx.accounts.compressed_proof;
+
+        msg!("Report data found!");
+        let report = ReportDataV9::decode(&return_data)
+            .map_err(|_| error!(CustomError::InvalidReportData))?;
+        compressed_proof_account.compressed_proof = return_data;
+
+        // The AUM is in 18 decimals, but the reserves are in 9 decimals
+        let new_reserves = report
+            .aum
+            .checked_div(&BigInt::from(10u32.pow(9)))
+            .and_then(|x| x.to_u64())
+            .ok_or(error!(CustomError::InvalidReportData))?;
+
+        // Log report fields
+        msg!("Report: {:?}", report);
+        msg!("New reserves {:?}", new_reserves);
+
+        assert!(ctx.accounts.u.supply <= new_reserves);
+
+        if ctx.accounts.config_pda.feed_id != report.feed_id.0 {
+            return Err(error!(CustomError::InvalidReportData));
         }
+
+        if let Some(last_update) = ctx.accounts.reserves_pda.last_updated {
+            if last_update >= report.observations_timestamp as i64 {
+                return Err(error!(CustomError::InvalidReportData));
+            }
+        }
+
+        if report.valid_from_timestamp > now as u32 {
+            return Err(error!(CustomError::InvalidReportData));
+        }
+
+        let reserves_prev = ctx.accounts.reserves_pda.reserves;
+
+        ctx.accounts.reserves_pda.reserves = new_reserves;
+        ctx.accounts.reserves_pda.last_updated = Some(report.observations_timestamp as i64);
+        // clear the pending_redemptions after updating the reserves
+        ctx.accounts.reserves_pda.pending_redemptions = 0;
+
+        msg!("Config PDA: {:?}", ctx.accounts.config_pda);
+        msg!("Reserves Account: {:?}", ctx.accounts.reserves_pda);
+
+        emit!(VerifyEvent {
+            mint: ctx.accounts.u.key().to_string(),
+            total_reserves: new_reserves,
+            total_reserves_prev: reserves_prev,
+            total_supply: ctx.accounts.u.supply,
+            created_at: now,
+        });
 
         Ok(())
     }
-
-    /// Verifies a Data Streams report using Cross-Program Invocation to the Verifier program
-    /// Returns the decoded report data if verification succeeds
-    // pub fn verify(
-    //     ctx: Context<Verify>,
-    //     signed_report: Vec<u8>,
-    //     compressed_proof: Vec<u8>,
-    // ) -> Result<()> {
-    //     let program_id = ctx.accounts.verifier_program_id.key();
-    //     let verifier_account = ctx.accounts.verifier_account.key();
-    //     let access_controller = ctx.accounts.access_controller.key();
-    //     let user = ctx.accounts.user.key();
-    //     let config_account = ctx.accounts.verifier_config_account.key();
-
-    //     // Create verification instruction
-    //     let chainlink_ix: Instruction = VerifierInstructions::verify(
-    //         &program_id,
-    //         &verifier_account,
-    //         &access_controller,
-    //         &user,
-    //         &config_account,
-    //         signed_report,
-    //     );
-
-    //     // Invoke the Verifier program
-    //     invoke(
-    //         &chainlink_ix,
-    //         &[
-    //             ctx.accounts.verifier_account.to_account_info(),
-    //             ctx.accounts.access_controller.to_account_info(),
-    //             ctx.accounts.user.to_account_info(),
-    //             ctx.accounts.verifier_config_account.to_account_info(),
-    //         ],
-    //     )?;
-
-    //     // Decode and log the verified report data
-    //     if let Some((_program_id, return_data)) = get_return_data() {
-    //         msg!("Report data found!");
-    //         let report = ReportDataV3::decode(&return_data)
-    //             .map_err(|_| error!(CustomError::InvalidReportData))?;
-
-    //         // The ProofState struct compressed must be constructed prior
-    //         let compressed_proof_account = &mut ctx.accounts.compressed_proof;
-    //         compressed_proof_account.compressed_proof = compressed_proof;
-    //         // Log report fields
-    //         msg!("FeedId: {}", report.feed_id);
-    //         msg!("Valid from timestamp: {}", report.valid_from_timestamp);
-    //         msg!("Observations Timestamp: {}", report.observations_timestamp);
-    //         msg!("Native Fee: {}", report.native_fee);
-    //         msg!("Link Fee: {}", report.link_fee);
-    //         msg!("Expires At: {}", report.expires_at);
-    //         msg!("Benchmark Price: {}", report.benchmark_price);
-    //         msg!("Bid: {}", report.bid);
-    //         msg!("Ask: {}", report.ask);
-
-    //         // // log the proof state
-    //         msg!(
-    //             "Compressed Proof: {:?}",
-    //             compressed_proof_account.compressed_proof.clone()
-    //         );
-
-    //         let proof_state = compressed_proof_account.decode()?;
-    //         msg!("Proof State: {:?}", proof_state);
-
-    //         let reserves_account = &mut ctx.accounts.reserves;
-    //         let reserves_prev = reserves_account.reserves;
-    //         reserves_account.reserves = proof_state.total_reserves;
-
-    //         msg!("Reserves Account: {:?}", reserves_account);
-
-    //         emit!(VerifyEvent {
-    //             total_reserves: reserves_account.reserves,
-    //             total_reserves_prev: reserves_prev,
-    //             total_supply: ctx.accounts.u.supply,
-    //             created_at: Clock::get().unwrap().unix_timestamp,
-    //         });
-    //     } else {
-    //         msg!("No report data found!");
-    //         return Err(error!(CustomError::NoReportData));
-    //     }
-
-    //     Ok(())
-    // }
 
     // tells you the current reserves amount
     pub fn reserve_amount(ctx: Context<ReservesContext>) -> Result<()> {

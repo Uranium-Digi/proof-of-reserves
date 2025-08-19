@@ -279,9 +279,9 @@ pub struct Verify<'info> {
         seeds=[b"reserves", u.key().as_ref()],
         bump,
         payer = user,
-        space = 8 + 8 + 9,
+        space = 8 + Reserves::INIT_SPACE,
     )]
-    pub reserves: Account<'info, Reserves>,
+    pub reserves_pda: Box<Account<'info, Reserves>>,
     pub system_program: Program<'info, System>,
 }
 

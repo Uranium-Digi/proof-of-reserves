@@ -3,7 +3,7 @@ use anchor_lang::prelude::*;
 use crate::err::CustomError;
 
 #[account]
-#[derive(InitSpace)]
+#[derive(InitSpace, Debug)]
 pub struct Config {
     pub authority: Pubkey,
     pub issue_authority: Pubkey,
@@ -31,7 +31,7 @@ impl CompressedProof {
 }
 
 #[account]
-#[derive(Debug)]
+#[derive(Debug, InitSpace)]
 pub struct Reserves {
     pub reserves: u64,
     pub last_updated: Option<i64>,

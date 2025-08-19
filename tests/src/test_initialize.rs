@@ -310,10 +310,10 @@ async fn test_initialize() {
                     system_program: solana_program::system_program::ID,
                 })
                 .args(proof_of_reserves::instruction::Initialize {
-                    feed_id: vec![
-                        0, 3, 104, 78, 169, 60, 67, 237, 123, 208, 10, 179, 187, 24, 155, 182, 47,
-                        136, 4, 54, 88, 159, 28, 165, 139, 89, 156, 217, 125, 96, 7, 251,
-                    ],
+                    feed_id: hex::decode(
+                        "0009fffb1e3bd8e3948987ceb484b7e0153ddcfaf6c22290f4240616891c14c3",
+                    )
+                    .unwrap(),
                 })
                 .instructions()
                 .unwrap(),
@@ -407,8 +407,8 @@ async fn test_initialize() {
                     new_issuance_fee_rate: 0u16,
                     new_redemption_fee_rate: 0u16,
                     feed_id: vec![
-                        0, 3, 104, 78, 169, 60, 67, 237, 123, 208, 10, 179, 187, 24, 155, 182, 47,
-                        136, 4, 54, 88, 159, 28, 165, 139, 89, 156, 217, 125, 96, 7, 251,
+                        0, 9, 255, 251, 30, 59, 216, 227, 148, 137, 135, 206, 180, 132, 183, 224,
+                        21, 61, 220, 250, 246, 194, 34, 144, 244, 36, 6, 22, 137, 28, 20, 195,
                     ],
                 })
                 .instructions()
@@ -562,6 +562,9 @@ async fn test_initialize() {
             &spl_token::ID,
         ));
 
+        let reserves_pda =
+            Pubkey::find_program_address(&[b"reserves", u.pubkey().as_ref()], &program_id).0;
+
         ixs.append(
             &mut program
                 .request()
@@ -572,6 +575,7 @@ async fn test_initialize() {
                     u: u.pubkey(),
                     redemption_wallet_pda,
                     redemption_wallet_pda_u_ata,
+                    reserves_pda,
                     company_wallet: company_wallet.pubkey(),
                     company_wallet_u_ata,
                     token_program: spl_token::ID,
