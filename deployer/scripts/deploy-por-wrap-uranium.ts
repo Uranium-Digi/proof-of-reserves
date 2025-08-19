@@ -130,7 +130,12 @@ export async function initialize(
     console.log('🏗️ configPda:', configPda.toBase58())
 
     const initializeProgramIx = await programProofOfReserves.methods
-        .initialize()
+        .initialize(
+            Buffer.from([
+                0, 9, 255, 251, 30, 59, 216, 227, 148, 137, 135, 206, 180, 132, 183, 224, 21, 61, 220, 250, 246, 194,
+                34, 144, 244, 36, 6, 22, 137, 28, 20, 195,
+            ]),
+        )
         .accountsPartial({
             signer: tokenAuthority.publicKey,
             u,
@@ -359,14 +364,16 @@ async function saveAddressesToFile(addresses: { u: string; configPda: string; pr
 }
 
 main({
-    deployTokenOnly: true,
+    deployTokenOnly: false,
+    uraniumTokenAddress: 'WAGA5PtWrK5hLePz64mFyNtTcpeJm6XGeqBCmc3wrbP',
+    useExistingProofOfReservesIdl: true,
     startsWith: 'WAGA', // startsWith: 'WAGA',
     endsWith: undefined, // endsWith: '1',
     name: 'Wagashi',
     symbol: 'WAGASHI',
     description: 'This is a Wagashi.',
     imageUri: 'https://raw.githubusercontent.com/Uranium-Digi/lemon-cake/refs/heads/main/namagashi.png',
-    initialSupply: 123,
+    initialSupply: 0,
 })
 
 // async function generateVanity() {

@@ -67,17 +67,22 @@ pub async fn run(
 
                 // Print decoded report details
                 debug!("Stream ID: {}", response.report.feed_id.to_hex_string());
+                debug!("Valid from timestamp: {}", report_data.valid_from_timestamp);
                 debug!("report_data: {:#?}", report_data);
                 debug!("response.report: {:#?}", response.report);
                 debug!("Stream Stats: {:#?}", stream.get_stats());
 
+                sleep(Duration::from_secs(10)).await;
                 // FIXME: This should be changed to verify if the report is not same as on-chain
                 // data
                 if response.report.valid_from_timestamp > last_verified_timestamp + 30 {
                     info!("Verifying report...");
-                    let Ok(tx) = transmitter.verify(&response.report.full_report).await else {
-                        error!("Error verifying report");
-                        break;
+                    let tx = match transmitter.verify(&response.report.full_report).await {
+                        Ok(tx) => tx,
+                        Err(e) => {
+                            error!("Error verifying report: {:?}", e);
+                            break;
+                        }
                     };
                     info!("Signature: {}", tx);
                     last_verified_timestamp = response.report.valid_from_timestamp;

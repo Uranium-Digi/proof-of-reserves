@@ -11,7 +11,7 @@ use instructions::*;
 pub use events::*;
 pub use structs::*;
 
-declare_id!("GaAH3oNQ7TD3egXSfies5tBPDctXjoLLuUfnGSzwtDsF");
+declare_id!("3fxTbAzpAy2i7NdywrKpY6CGPmSqxwYtWWXS7Q5NJMB9");
 
 // FIXME: *** Change this to your own address before deploying ***
 const INIT_AUTHORITY: Pubkey =

@@ -6,7 +6,7 @@ resolution = true
 skip-lint = false
 
 [programs.localnet]
-proof_of_reserves = "GaAH3oNQ7TD3egXSfies5tBPDctXjoLLuUfnGSzwtDsF"
+proof_of_reserves = "3fxTbAzpAy2i7NdywrKpY6CGPmSqxwYtWWXS7Q5NJMB9"
 
 [registry]
 url = "https://api.apr.dev"
@@ -17,7 +17,7 @@ wallet = "~/projects/ud/proof-of-reserves/.secrets/tokenAuthority.json"
 #wallet = "/Users/hongjan/Documents/proof-of-reserves/.secrets/tokenAuthority.json"
 
 [scripts]
-test = "cargo test"
+test = "cargo test -- --nocapture"
 
 [test]
 startup_wait = 5000

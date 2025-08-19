@@ -1,9 +1,9 @@
 {
-  "timestamp": "2025-06-09T15:30:03.170Z",
+  "timestamp": "2025-08-19T21:37:41.628Z",
   "network": "devnet",
   "addresses": {
-    "u": "CAKeZkCxys7G2nEsR6jSSmkDrAeBa6fM56CnMjRzrkhW",
-    "configPda": "GJ2TgVaiZWvkm7rn2TbBvu1km9RYiMiQ8jA6KMWw3oWp",
-    "proofOfReservesProgramId": "GaAH3oNQ7TD3egXSfies5tBPDctXjoLLuUfnGSzwtDsF"
+    "u": "WAGA5PtWrK5hLePz64mFyNtTcpeJm6XGeqBCmc3wrbP",
+    "configPda": "9oXuVoLUqtkz3qcbMg2FcmX5Rh2TnfghRXS2VGYD5CPq",
+    "proofOfReservesProgramId": "3fxTbAzpAy2i7NdywrKpY6CGPmSqxwYtWWXS7Q5NJMB9"
   }
 }
