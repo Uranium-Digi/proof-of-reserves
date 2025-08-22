@@ -272,7 +272,15 @@ pub mod proof_of_reserves {
         Ok(())
     }
 
-    pub fn verify(ctx: Context<Verify>, signed_report: Vec<u8>) -> Result<()> {
+    pub fn verify(
+        ctx: Context<Verify>,
+        signed_report: Vec<u8>,
+        // only for deduplication purposes
+        tnf_last_updated_at: u64,
+    ) -> Result<()> {
+        if ctx.accounts.reserves_pda.tnf_last_updated_at >= tnf_last_updated_at {
+            return Err(error!(CustomError::ReportAlreadyVerified));
+        }
         let program_id = ctx.accounts.verifier_program_id.key();
         let verifier_account = ctx.accounts.verifier_account.key();
         let access_controller = ctx.accounts.access_controller.key();
@@ -347,6 +355,7 @@ pub mod proof_of_reserves {
         ctx.accounts.reserves_pda.last_updated = Some(report.observations_timestamp as i64);
         // clear the pending_redemptions after updating the reserves
         ctx.accounts.reserves_pda.pending_redemptions = 0;
+        ctx.accounts.reserves_pda.tnf_last_updated_at = tnf_last_updated_at;
 
         msg!("Config PDA: {:?}", ctx.accounts.config_pda);
         msg!("Reserves Account: {:?}", ctx.accounts.reserves_pda);

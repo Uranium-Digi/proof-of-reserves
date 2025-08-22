@@ -471,7 +471,7 @@ async fn test_initialize() {
         access_controller_data_account,
     )
     .unwrap()
-    .verify(DEFAULT_HEX_STRING)
+    .verify(DEFAULT_HEX_STRING, 1)
     .await
     .unwrap();
     rpc.confirm_transaction_with_spinner(

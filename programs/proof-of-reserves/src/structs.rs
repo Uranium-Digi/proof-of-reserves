@@ -37,7 +37,9 @@ pub struct Reserves {
     pub last_updated: Option<i64>,
     /// The redeemed amount in the last issuance/redemption cycle
     pub pending_redemptions: u64,
-    pub padding: [u8; 64],
+    /// The last time the TNF was updated
+    pub tnf_last_updated_at: u64,
+    pub padding: [u8; 56],
 }
 
 #[derive(Debug)]

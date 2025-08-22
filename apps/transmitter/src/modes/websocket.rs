@@ -10,6 +10,8 @@ use tracing::{debug, error, info};
 
 use crate::{app_config::AppConfig, transmitter::transmitter::Transmitter};
 
+#[deprecated(note = "Use DirectApiService instead")]
+#[allow(dead_code, unused)]
 pub async fn run(
     app_config: &AppConfig,
     transmitter: Transmitter,
@@ -75,6 +77,7 @@ pub async fn run(
                 sleep(Duration::from_secs(10)).await;
                 // FIXME: This should be changed to verify if the report is not same as on-chain
                 // data
+                /*
                 if response.report.valid_from_timestamp > last_verified_timestamp + 30 {
                     info!("Verifying report...");
                     let tx = match transmitter.verify(&response.report.full_report).await {
@@ -87,6 +90,7 @@ pub async fn run(
                     info!("Signature: {}", tx);
                     last_verified_timestamp = response.report.valid_from_timestamp;
                 }
+                */
             }
             error!("Stream closed, reconnecting...");
             sleep(Duration::from_secs(1)).await;

@@ -1,10 +1,7 @@
 use std::sync::Arc;
-use std::time::{SystemTime, UNIX_EPOCH};
 
 use anchor_client::solana_sdk::compute_budget::ComputeBudgetInstruction;
-use anchor_client::solana_sdk::native_token::LAMPORTS_PER_SOL;
 use anchor_client::solana_sdk::signature::Signature;
-use anchor_client::solana_sdk::system_instruction::SystemInstruction;
 use anchor_client::Cluster;
 use anchor_client::{solana_sdk::signature::Keypair, Program};
 use anchor_lang::prelude::Pubkey;
@@ -13,9 +10,11 @@ use anyhow::{Context, Result};
 use proof_of_reserves;
 
 use snap::raw::Encoder;
+use tracing::debug;
 
 use crate::utils::proof_of_reserves_loader::load_proof_of_reserves;
 
+// Report snapsho for test
 pub const DEFAULT_HEX_STRING: &str = "0x00090d9e8d96765a0c49e03a6ae05c82e8f8de70cf179baa632f18313e54bd69000000000000000000000000000000000000000000000000000000000177c3ea000000000000000000000000000000000000000000000000000000030000000100000000000000000000000000000000000000000000000000000000000000e0000000000000000000000000000000000000000000000000000000000000024000000000000000000000000000000000000000000000000000000000000002a0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001400009fffb1e3bd8e3948987ceb484b7e0153ddcfaf6c22290f4240616891c14c30000000000000000000000000000000000000000000000000000000068a4d3b50000000000000000000000000000000000000000000000000000000068a4d3b5000000000000000000000000000000000000000000000000000045fe79dc698d000000000000000000000000000000000000000000000000002f81a8183c3a710000000000000000000000000000000000000000000000000000000068cc60b5000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000198bfa08ef900000000000000000000000000000000000000000000001b1ae4d6e2ef50000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000002104dcc2d1654108de2c4395fcacf0c24a3d69c6d15e5714d9208a5c4cd8f6edb36288b7e25db0057cac014c76e77ee27e386cc1aa7a6f99249bb90ab390e800d00000000000000000000000000000000000000000000000000000000000000024b2faacffaa503b333432bd79df9f8b9aa4188d788346d6cb3d15f3f819b6b571b9c0c11f6c3767e398275d32f522628aea8184f64d5752b7cafa13ddb11fc4f";
 
 pub struct Transmitter {
@@ -49,6 +48,19 @@ impl Transmitter {
         })
     }
 
+    pub async fn get_tnf_last_updated_at(&self) -> u64 {
+        let reserves_account = Pubkey::find_program_address(
+            &[b"reserves", self.u_address.as_ref()],
+            &self.program.id(),
+        )
+        .0;
+        self.program
+            .account::<proof_of_reserves::Reserves>(reserves_account)
+            .await
+            .unwrap()
+            .tnf_last_updated_at
+    }
+
     pub fn parse_and_compress_hex_report(&self, hex_string: &str) -> Result<(Vec<u8>, Vec<u8>)> {
         let clean_hex = hex_string.strip_prefix("0x").unwrap_or(hex_string);
 
@@ -75,7 +87,7 @@ impl Transmitter {
         Ok((compressed, feed_id))
     }
 
-    pub async fn verify(&self, full_report: &str) -> Result<Signature> {
+    pub async fn verify(&self, full_report: &str, tnf_last_updated_at: u64) -> Result<Signature> {
         let (compressed_report, feed_id) = self.parse_and_compress_hex_report(full_report)?;
 
         let verifier_account =
@@ -117,22 +129,22 @@ impl Transmitter {
             system_program: anchor_client::solana_sdk::system_program::ID,
         };
 
-        println!("account.verify_account: {:?}", account.verifier_account);
-        println!("account.access_controller: {:?}", account.access_controller);
-        println!("account.user: {:?}", account.user);
-        println!("account.config_pda: {:?}", account.config_pda);
-        println!("account.u: {:?}", account.u);
-        println!(
+        debug!("account.verify_account: {:?}", account.verifier_account);
+        debug!("account.access_controller: {:?}", account.access_controller);
+        debug!("account.user: {:?}", account.user);
+        debug!("account.config_pda: {:?}", account.config_pda);
+        debug!("account.u: {:?}", account.u);
+        debug!(
             "account.verifier_config_account: {:?}",
             account.verifier_config_account
         );
-        println!(
+        debug!(
             "account.verifier_program_id: {:?}",
             account.verifier_program_id
         );
-        println!("account.compressed_proof: {:?}", account.compressed_proof);
-        println!("account.reserves_pda: {:?}", account.reserves_pda);
-        println!("account.system_program: {:?}", account.system_program);
+        debug!("account.compressed_proof: {:?}", account.compressed_proof);
+        debug!("account.reserves_pda: {:?}", account.reserves_pda);
+        debug!("account.system_program: {:?}", account.system_program);
 
         let verify_ix = self
             .program
@@ -140,6 +152,7 @@ impl Transmitter {
             .accounts(account)
             .args(proof_of_reserves::instruction::Verify {
                 signed_report: compressed_report,
+                tnf_last_updated_at,
             })
             .instructions()?
             .remove(0);
@@ -162,8 +175,8 @@ impl Transmitter {
         let reserves_account: proof_of_reserves::Reserves =
             self.program.account(reserves_account).await?;
 
-        println!("Proof State: {:#?}", proof_state);
-        println!("Reserves Account: {:#?}", reserves_account);
+        debug!("Proof State: {:#?}", proof_state);
+        debug!("Reserves Account: {:#?}", reserves_account);
 
         Ok(tx)
     }

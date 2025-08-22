@@ -33,6 +33,9 @@ pub struct AppConfig {
     #[serde(default = "default_chainlink_api_key")]
     pub chainlink_api_key: String,
     pub chainlink_api_secret: String,
+
+    pub tnf_api_endpoint: String,
+    pub tnf_api_key: String,
 }
 
 fn default_access_controller_data_account() -> String {

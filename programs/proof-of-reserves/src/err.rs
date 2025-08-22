@@ -15,4 +15,5 @@ pub enum CustomError {
     InvalidHexString,
     InvalidFeeRate,
     InvalidProgramId,
+    ReportAlreadyVerified,
 }
