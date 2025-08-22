@@ -349,6 +349,10 @@ pub mod proof_of_reserves {
             return Err(error!(CustomError::InvalidReportData));
         }
 
+        if report.valid_from_timestamp < tnf_last_updated_at as u32 {
+            return Err(error!(CustomError::InvalidReportData));
+        }
+
         let reserves_prev = ctx.accounts.reserves_pda.reserves;
 
         ctx.accounts.reserves_pda.reserves = new_reserves;
