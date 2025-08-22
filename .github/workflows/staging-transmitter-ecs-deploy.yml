@@ -6,7 +6,6 @@ on:
       - staging
     paths:
       - "apps/transmitter/**"
-      - "libraries/**"
       - "program/**"
       - "task-definition/staging/uraniumdigital-transmitter.json"
       - "Dockerfile.transmitter"

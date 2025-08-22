@@ -3,10 +3,9 @@ name: DEV Transmitter build & deploy
 on:
   push:
     branches:
-      - main
+      - feat/new-structure
     paths:
       - "apps/transmitter/**"
-      - "libraries/**"
       - "programs/**"
       - "task-definition/dev/uraniumdigital-transmitter.json"
       - "Dockerfile.transmitter"
