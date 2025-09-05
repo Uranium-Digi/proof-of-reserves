@@ -14,7 +14,7 @@ dotenv.config({ path: path.resolve(__dirname, '../../.env') })
 
 // Program IDs
 export const WRAP_TOKEN_PROGRAM_ID = '2kg6WJrBjEhqPyWPdx3ct2KovhWD3hGoAihhwNo4XigW'
-export const TOKEN_ADDRESS = 'WAGA5PtWrK5hLePz64mFyNtTcpeJm6XGeqBCmc3wrbP'
+export const TOKEN_ADDRESS = 'WaGavLAFHcb9RrpfqkVgUBsJr5A6myEZGB5SyihR2bv'
 
 // Connection
 export const NETWORK_USED: string = process.env.NETWORK_USED || 'devnet'
@@ -43,6 +43,7 @@ export const setUpUmi = () => {
     const secretKey = JSON.parse(fileContent)
     let keypair = umi.eddsa.createKeypairFromSecretKey(new Uint8Array(secretKey))
     const signer = createSignerFromKeypair(umi, keypair)
+    console.log('Using this in metaplex to sign transactions:', signer.publicKey.toString())
     umi.use(signerIdentity(signer))
     return umi
 }

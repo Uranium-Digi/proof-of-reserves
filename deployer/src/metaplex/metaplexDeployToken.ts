@@ -127,10 +127,14 @@ export default class MetaplexComplex {
 
         // Call upon umi's uploadJson function to upload our metadata to Arweave via Irys.
         console.log('Uploading metadata to Arweave via Irys')
+        const metadataUri = 'https://gateway.irys.xyz/2YFshcZ2pa5rVkthLb6ruJihdh8hVarNua3zpJizzp2s'
+
+        /*
         const metadataUri = await umi.uploader.uploadJson(metadata).catch((err) => {
             throw new Error(err)
         })
 
+        */
         // Creating the mintIx
         let mintSigner: KeypairSigner
         if (tokenConfig.vanityAddress) {

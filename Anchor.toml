@@ -6,15 +6,21 @@ resolution = true
 skip-lint = false
 
 [programs.localnet]
-proof_of_reserves = "3fxTbAzpAy2i7NdywrKpY6CGPmSqxwYtWWXS7Q5NJMB9"
+# dev
+proof_of_reserves = "GaAH3oNQ7TD3egXSfies5tBPDctXjoLLuUfnGSzwtDsF"
+# dev-testnet
+#proof_of_reserves = "3AbjJbGBd2yU3JLzQ3sm7RGgX3aWZPYyoPsot2zykN1k"
+# uat
+##proof_of_reserves = "3fxTbAzpAy2i7NdywrKpY6CGPmSqxwYtWWXS7Q5NJMB9"
 
 [registry]
 url = "https://api.apr.dev"
 
 [provider]
 cluster = "localnet"
-wallet = "~/projects/ud/proof-of-reserves/.secrets/tokenAuthority.json"
-#wallet = "/Users/hongjan/Documents/proof-of-reserves/.secrets/tokenAuthority.json"
+#wallet = "~/projects/ud/proof-of-reserves/.secrets/abcwYfXEL2yCCJFUvYGkqTewLxocWK2oAw2Nqny5rnF.json"
+#wallet = "~/projects/ud/proof-of-reserves/.secrets/tokenAuthority.json"
+wallet = "/Users/hongjan/Documents/proof-of-reserves/.secrets/tokenAuthority.json"
 
 [scripts]
 test = "cargo test -- --nocapture"

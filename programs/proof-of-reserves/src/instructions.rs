@@ -300,7 +300,14 @@ pub struct ReservesContext<'info> {
     )]
     pub config_pda: Box<Account<'info, Config>>,
 
-    #[account(mut, seeds=[b"reserves", u.key().as_ref()], bump)]
+    #[account(
+        init_if_needed,
+        seeds=[b"reserves", u.key().as_ref()],
+        bump,
+        payer = signer,
+        space = 8 + Reserves::INIT_SPACE,
+    )]
     pub reserves_account: Account<'info, Reserves>,
-}
 
+    pub system_program: Program<'info, System>,
+}

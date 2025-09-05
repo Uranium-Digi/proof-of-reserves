@@ -365,7 +365,7 @@ async function saveAddressesToFile(addresses: { u: string; configPda: string; pr
 
 main({
     deployTokenOnly: false,
-    uraniumTokenAddress: 'WAGA5PtWrK5hLePz64mFyNtTcpeJm6XGeqBCmc3wrbP',
+    uraniumTokenAddress: 'WaGavLAFHcb9RrpfqkVgUBsJr5A6myEZGB5SyihR2bv',
     useExistingProofOfReservesIdl: true,
     startsWith: 'WAGA', // startsWith: 'WAGA',
     endsWith: undefined, // endsWith: '1',
