@@ -10,10 +10,10 @@ on:
       - "task-definition/dev/uraniumdigital-transmitter.json"
       - "Dockerfile.transmitter"
 env:
-  ENV: dev
+  ENV: uat
   SERVICE: uraniumdigital-transmitter
   ECS_SERVICE: uraniumdigital-transmitter-service
-  ECS_CLUSTER: uraniumdigital-dev-ec2
+  ECS_CLUSTER: uraniumdigital-uat
   ECR_REPOSITORY: uraniumdigital/transmitter
 
 jobs:
