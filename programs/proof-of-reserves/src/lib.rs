@@ -11,7 +11,7 @@ use instructions::*;
 pub use events::*;
 pub use structs::*;
 
-// dev
+// dev / localnet
 //declare_id!("GaAH3oNQ7TD3egXSfies5tBPDctXjoLLuUfnGSzwtDsF");
 
 // dev-testnet
@@ -69,12 +69,25 @@ pub mod proof_of_reserves {
         if new_issuance_fee_rate > 10_000 || new_redemption_fee_rate > 10_000 {
             return Err(CustomError::InvalidFeeRate.into());
         }
-        ctx.accounts.config_pda.authority = ctx.accounts.new_authority.key();
         ctx.accounts.config_pda.issue_authority = ctx.accounts.new_issue_authority.key();
         ctx.accounts.config_pda.redeem_authority = ctx.accounts.new_redeem_authority.key();
         ctx.accounts.config_pda.issuance_fee_rate = new_issuance_fee_rate;
         ctx.accounts.config_pda.redemption_fee_rate = new_redemption_fee_rate;
         ctx.accounts.config_pda.feed_id = feed_id[..32].try_into().unwrap();
+        Ok(())
+    }
+
+    pub fn set_pending_authority(ctx: Context<SetPendingAuthority>) -> Result<()> {
+        ctx.accounts.config_pda.pending_authority = ctx.accounts.new_pending_authority.key();
+        Ok(())
+    }
+
+    pub fn accept_authority(ctx: Context<AcceptAuthority>) -> Result<()> {
+        if ctx.accounts.config_pda.pending_authority == Pubkey::default() {
+            return Err(CustomError::NoPendingAuthority.into());
+        }
+        ctx.accounts.config_pda.authority = ctx.accounts.config_pda.pending_authority;
+        ctx.accounts.config_pda.pending_authority = Pubkey::default();
         Ok(())
     }
 

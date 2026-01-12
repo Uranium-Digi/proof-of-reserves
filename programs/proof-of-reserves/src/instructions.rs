@@ -91,12 +91,50 @@ pub struct SetConfig<'info> {
     pub u: Box<InterfaceAccount<'info, Mint>>,
 
     /// CHECK: This is not dangerous because we don't read or write from this account
-    pub new_authority: AccountInfo<'info>,
-    /// CHECK: This is not dangerous because we don't read or write from this account
     pub new_issue_authority: AccountInfo<'info>,
     /// CHECK: This is not dangerous because we don't read or write from this account
     pub new_redeem_authority: AccountInfo<'info>,
+}
 
+#[derive(Accounts)]
+pub struct SetPendingAuthority<'info> {
+    #[account(
+        mut,
+        constraint = signer.key() == config_pda.authority @ CustomError::YouAreNotAdmin
+    )]
+    pub signer: Signer<'info>,
+
+    #[account(
+        mut,
+        seeds = [b"config_pda", u.key().as_ref()],
+        bump,
+    )]
+    pub config_pda: Box<Account<'info, Config>>,
+
+    #[account(mint::decimals = 9)]
+    pub u: Box<InterfaceAccount<'info, Mint>>,
+
+    /// CHECK: This is not dangerous because we don't read or write from this account
+    pub new_pending_authority: AccountInfo<'info>,
+}
+
+#[derive(Accounts)]
+pub struct AcceptAuthority<'info> {
+    #[account(
+        mut,
+        constraint = signer.key() == config_pda.pending_authority @ CustomError::YouAreNotPendingAuthority
+    )]
+    pub signer: Signer<'info>,
+
+    #[account(
+        mut,
+        seeds = [b"config_pda", u.key().as_ref()],
+        bump,
+    )]
+    pub config_pda: Box<Account<'info, Config>>,
+
+    #[account(mint::decimals = 9)]
+    pub u: Box<InterfaceAccount<'info, Mint>>,
 }
 
 #[derive(Accounts)]

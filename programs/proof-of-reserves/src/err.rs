@@ -6,6 +6,8 @@ pub enum CustomError {
     YouAreNotUpdateAuthority,
     YouAreNotIssueAuthority,
     YouAreNotRedeemAuthority,
+    YouAreNotPendingAuthority,
+    NoPendingAuthority,
     InsufficientReserves,
     IssuanceFeeCalculationError,
     RedemptionFeeCalculationError,

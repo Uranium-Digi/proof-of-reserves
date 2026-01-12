@@ -374,7 +374,6 @@ async fn test_initialize() {
                     signer: signer.pubkey(),
                     config_pda,
                     u: u.pubkey(),
-                    new_authority: signer.pubkey(),
                     new_issue_authority: u.pubkey(),
                     new_redeem_authority: u.pubkey(),
                 })
@@ -399,7 +398,6 @@ async fn test_initialize() {
                     signer: signer.pubkey(),
                     config_pda,
                     u: u.pubkey(),
-                    new_authority: signer.pubkey(),
                     new_issue_authority: signer.pubkey(),
                     new_redeem_authority: signer.pubkey(),
                 })
