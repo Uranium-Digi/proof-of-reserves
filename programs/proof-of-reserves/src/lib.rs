@@ -394,16 +394,4 @@ pub mod proof_of_reserves {
 
         Ok(())
     }
-
-    // tells you the current reserves amount
-    pub fn reserve_amount(ctx: Context<ReservesContext>) -> Result<()> {
-        let reserves_account = &ctx.accounts.reserves_account;
-        msg!("Reserves amount: {}", reserves_account.reserves);
-        Ok(())
-    }
-
-    pub fn update_reserves_amount(ctx: Context<ReservesContext>, amount: u64) -> Result<()> {
-        ctx.accounts.reserves_account.reserves = amount;
-        Ok(())
-    }
 }

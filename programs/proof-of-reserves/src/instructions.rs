@@ -322,30 +322,3 @@ pub struct Verify<'info> {
     pub reserves_pda: Box<Account<'info, Reserves>>,
     pub system_program: Program<'info, System>,
 }
-
-#[derive(Accounts)]
-pub struct ReservesContext<'info> {
-    #[account(mut, constraint = signer.key() == config_pda.update_authority @ CustomError::YouAreNotUpdateAuthority)]
-    pub signer: Signer<'info>,
-
-    #[account(mint::decimals = 9)]
-    pub u: Box<InterfaceAccount<'info, Mint>>,
-
-    #[account(
-        mut,
-        seeds = [b"config_pda", u.key().as_ref()],
-        bump,
-    )]
-    pub config_pda: Box<Account<'info, Config>>,
-
-    #[account(
-        init_if_needed,
-        seeds=[b"reserves", u.key().as_ref()],
-        bump,
-        payer = signer,
-        space = 8 + Reserves::INIT_SPACE,
-    )]
-    pub reserves_account: Account<'info, Reserves>,
-
-    pub system_program: Program<'info, System>,
-}
