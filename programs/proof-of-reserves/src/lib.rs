@@ -71,6 +71,7 @@ pub mod proof_of_reserves {
         }
         ctx.accounts.config_pda.issue_authority = ctx.accounts.new_issue_authority.key();
         ctx.accounts.config_pda.redeem_authority = ctx.accounts.new_redeem_authority.key();
+        ctx.accounts.config_pda.update_authority = ctx.accounts.new_update_authority.key();
         ctx.accounts.config_pda.issuance_fee_rate = new_issuance_fee_rate;
         ctx.accounts.config_pda.redemption_fee_rate = new_redemption_fee_rate;
         ctx.accounts.config_pda.feed_id = feed_id[..32].try_into().unwrap();

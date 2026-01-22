@@ -94,6 +94,8 @@ pub struct SetConfig<'info> {
     pub new_issue_authority: AccountInfo<'info>,
     /// CHECK: This is not dangerous because we don't read or write from this account
     pub new_redeem_authority: AccountInfo<'info>,
+    /// CHECK: This is not dangerous because we don't read or write from this account
+    pub new_update_authority: AccountInfo<'info>,
 }
 
 #[derive(Accounts)]
