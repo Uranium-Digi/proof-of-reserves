@@ -1,0 +1,36 @@
+[package]
+name = "proof-of-reserves"
+version = "0.1.0"
+description = "Created with Anchor"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "proof_of_reserves"
+
+[features]
+default = []
+cpi = ["no-entrypoint"]
+no-entrypoint = []
+no-idl = []
+no-log-ix-name = []
+devnet = []
+mainnet = []
+idl-build = [ "anchor-lang/idl-build", "anchor-spl/idl-build"]
+
+[dependencies]
+anchor-lang = { workspace = true, features=["init-if-needed"] }
+anchor-spl = { workspace = true, features=["token_2022_extensions"] }
+spl-tlv-account-resolution = "0.10.0"
+spl-transfer-hook-interface = "0.10.0"
+spl-type-length-value = "0.8.0"
+spl-pod = "0.5.0"
+bytemuck = "1.22.0"
+hex="0.4"
+num-bigint = "0.4"
+num-traits = "0.2"
+
+# chainlink
+chainlink_solana_data_streams = { workspace = true }
+chainlink-data-streams-report = { workspace = true }
+verifier = { git = "https://github.com/Uranium-Digi/chainlink-data-streams-solana.git", subdir="programs/verifier", features=["no-entrypoint"]}

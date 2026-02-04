@@ -1,0 +1,24 @@
+[package]
+name = "proof-of-reserves-tests"
+version = "0.1.0"
+description = "Created with Anchor"
+edition = "2021"
+
+[dependencies]
+tokio = { version = "1", features = ["macros"] }
+anchor-client = { workspace = true, features = ["async"] }
+anchor-spl = { workspace = true }
+anchor-lang = { workspace = true }
+solana-sdk = { workspace = true }
+solana-client = { workspace = true }
+solana-program-test = { workspace = true }
+
+proof-of-reserves = { workspace = true }
+
+verifier = { git = "https://github.com/Uranium-Digi/chainlink-data-streams-solana.git", subdir="programs/verifier", features=["no-entrypoint"]}
+access-controller = { git = "https://github.com/Uranium-Digi/chainlink-data-streams-solana.git", subdir="programs/access-controller", features=["no-entrypoint"]}
+
+hex-literal = "0.4.1"
+hex = "0.4.3"
+anyhow = "1.0.0"
+snap = "1"

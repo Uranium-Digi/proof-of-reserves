@@ -1,0 +1,23 @@
+# Build and dependency directories
+dist/
+node_modules/
+target/
+target/debug/
+target/release/
+target/sbf-solana-solana/
+
+# Environment and secrets
+.env
+.secrets/
+.secrets
+secret/
+
+# IDE and system files
+.anchor/
+.DS_Store
+**/*.rs.bk
+test-ledger/
+.yarn/
+
+# Vanity directory
+deployer/.vanity/
