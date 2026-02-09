@@ -21,8 +21,10 @@ pub mod proof_of_reserves {
     use anchor_lang::solana_program::program::{get_return_data, invoke};
 
     use anchor_spl::token::{
-        burn, mint_to, set_authority, spl_token::instruction::AuthorityType, transfer_checked,
-        Burn, MintTo, SetAuthority, TransferChecked,
+        burn, freeze_account, mint_to, set_authority, thaw_account,
+        spl_token::instruction::AuthorityType, transfer_checked, Burn,
+        FreezeAccount as FreezeAccountCpi, MintTo, SetAuthority,
+        ThawAccount as ThawAccountCpi, TransferChecked,
     };
 
     use chainlink_data_streams_report::report::v9::ReportDataV9;
@@ -62,6 +64,7 @@ pub mod proof_of_reserves {
         ctx.accounts.config_pda.issue_authority = ctx.accounts.new_issue_authority.key();
         ctx.accounts.config_pda.redeem_authority = ctx.accounts.new_redeem_authority.key();
         ctx.accounts.config_pda.update_authority = ctx.accounts.new_update_authority.key();
+        ctx.accounts.config_pda.freeze_authority = ctx.accounts.new_freeze_authority.key();
         ctx.accounts.config_pda.issuance_fee_rate = new_issuance_fee_rate;
         ctx.accounts.config_pda.redemption_fee_rate = new_redemption_fee_rate;
         ctx.accounts.config_pda.feed_id = feed_id[..32].try_into().unwrap();
@@ -280,6 +283,78 @@ pub mod proof_of_reserves {
             AuthorityType::MintTokens,
             Some(ctx.accounts.signer.key()),
         )?;
+        Ok(())
+    }
+
+    // Freeze authority "signer" -> "config_pda"
+    pub fn deposit_freeze_authority(ctx: Context<DepositFreezeAuthority>) -> Result<()> {
+        set_authority(
+            CpiContext::new(
+                ctx.accounts.token_program.to_account_info(),
+                SetAuthority {
+                    current_authority: ctx.accounts.signer.to_account_info(),
+                    account_or_mint: ctx.accounts.u.to_account_info(),
+                },
+            ),
+            AuthorityType::FreezeAccount,
+            Some(ctx.accounts.config_pda.key()),
+        )?;
+        ctx.accounts.config_pda.freeze_authority = ctx.accounts.signer.key();
+        Ok(())
+    }
+
+    // Freeze authority "config_pda" -> "signer"
+    pub fn withdraw_freeze_authority(ctx: Context<WithdrawFreezeAuthority>) -> Result<()> {
+        set_authority(
+            CpiContext::new_with_signer(
+                ctx.accounts.token_program.to_account_info(),
+                SetAuthority {
+                    current_authority: ctx.accounts.config_pda.to_account_info(),
+                    account_or_mint: ctx.accounts.u.to_account_info(),
+                },
+                &[&[
+                    b"config_pda",
+                    ctx.accounts.u.key().as_ref(),
+                    &[ctx.bumps.config_pda],
+                ]],
+            ),
+            AuthorityType::FreezeAccount,
+            Some(ctx.accounts.signer.key()),
+        )?;
+        Ok(())
+    }
+
+    pub fn freeze_token_account(ctx: Context<FreezeTokenAccount>) -> Result<()> {
+        freeze_account(CpiContext::new_with_signer(
+            ctx.accounts.token_program.to_account_info(),
+            FreezeAccountCpi {
+                account: ctx.accounts.target_token_account.to_account_info(),
+                mint: ctx.accounts.u.to_account_info(),
+                authority: ctx.accounts.config_pda.to_account_info(),
+            },
+            &[&[
+                b"config_pda",
+                ctx.accounts.u.key().as_ref(),
+                &[ctx.bumps.config_pda],
+            ]],
+        ))?;
+        Ok(())
+    }
+
+    pub fn thaw_token_account(ctx: Context<ThawTokenAccount>) -> Result<()> {
+        thaw_account(CpiContext::new_with_signer(
+            ctx.accounts.token_program.to_account_info(),
+            ThawAccountCpi {
+                account: ctx.accounts.target_token_account.to_account_info(),
+                mint: ctx.accounts.u.to_account_info(),
+                authority: ctx.accounts.config_pda.to_account_info(),
+            },
+            &[&[
+                b"config_pda",
+                ctx.accounts.u.key().as_ref(),
+                &[ctx.bumps.config_pda],
+            ]],
+        ))?;
         Ok(())
     }
 

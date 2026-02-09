@@ -73,6 +73,99 @@ pub struct WithdrawMintAuthority<'info> {
 }
 
 #[derive(Accounts)]
+pub struct DepositFreezeAuthority<'info> {
+    #[account(mut)]
+    pub signer: Signer<'info>,
+
+    #[account(
+        mut,
+        seeds = [b"config_pda", u.key().as_ref()],
+        bump,
+    )]
+    pub config_pda: Box<Account<'info, Config>>,
+
+    #[account(mut, mint::decimals = 9)]
+    pub u: Box<InterfaceAccount<'info, Mint>>,
+
+    pub token_program: Program<'info, Token>,
+}
+
+#[derive(Accounts)]
+pub struct WithdrawFreezeAuthority<'info> {
+    #[account(
+        mut,
+        constraint = signer.key() == config_pda.authority @ CustomError::YouAreNotAdmin
+    )]
+    pub signer: Signer<'info>,
+
+    #[account(
+        mut,
+        seeds = [b"config_pda", u.key().as_ref()],
+        bump,
+    )]
+    pub config_pda: Box<Account<'info, Config>>,
+
+    #[account(mut, mint::decimals = 9)]
+    pub u: Box<InterfaceAccount<'info, Mint>>,
+
+    pub token_program: Program<'info, Token>,
+}
+
+#[derive(Accounts)]
+pub struct FreezeTokenAccount<'info> {
+    #[account(
+        mut,
+        constraint = signer.key() == config_pda.freeze_authority @ CustomError::YouAreNotFreezeAuthority
+    )]
+    pub signer: Signer<'info>,
+
+    #[account(
+        seeds = [b"config_pda", u.key().as_ref()],
+        bump,
+    )]
+    pub config_pda: Box<Account<'info, Config>>,
+
+    #[account(mint::decimals = 9)]
+    pub u: Box<InterfaceAccount<'info, Mint>>,
+
+    #[account(
+        mut,
+        token::mint = u,
+        token::token_program = token_program,
+    )]
+    pub target_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
+
+    pub token_program: Program<'info, Token>,
+}
+
+#[derive(Accounts)]
+pub struct ThawTokenAccount<'info> {
+    #[account(
+        mut,
+        constraint = signer.key() == config_pda.freeze_authority @ CustomError::YouAreNotFreezeAuthority
+    )]
+    pub signer: Signer<'info>,
+
+    #[account(
+        seeds = [b"config_pda", u.key().as_ref()],
+        bump,
+    )]
+    pub config_pda: Box<Account<'info, Config>>,
+
+    #[account(mint::decimals = 9)]
+    pub u: Box<InterfaceAccount<'info, Mint>>,
+
+    #[account(
+        mut,
+        token::mint = u,
+        token::token_program = token_program,
+    )]
+    pub target_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
+
+    pub token_program: Program<'info, Token>,
+}
+
+#[derive(Accounts)]
 pub struct SetConfig<'info> {
     #[account(
         mut,
@@ -96,6 +189,8 @@ pub struct SetConfig<'info> {
     pub new_redeem_authority: AccountInfo<'info>,
     /// CHECK: This is not dangerous because we don't read or write from this account
     pub new_update_authority: AccountInfo<'info>,
+    /// CHECK: This is not dangerous because we don't read or write from this account
+    pub new_freeze_authority: AccountInfo<'info>,
 }
 
 #[derive(Accounts)]
@@ -324,3 +419,4 @@ pub struct Verify<'info> {
     pub reserves_pda: Box<Account<'info, Reserves>>,
     pub system_program: Program<'info, System>,
 }
+

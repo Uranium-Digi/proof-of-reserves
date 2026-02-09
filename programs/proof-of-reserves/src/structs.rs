@@ -13,7 +13,7 @@ pub struct Config {
     pub redemption_fee_rate: u16,
     pub feed_id: [u8; 32],
     pub pending_authority: Pubkey,
-    pub padding: [u8; 32],
+    pub freeze_authority: Pubkey,
 }
 
 #[account]

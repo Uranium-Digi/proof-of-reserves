@@ -382,6 +382,7 @@ async fn test_initialize() {
                     new_issue_authority: u.pubkey(),
                     new_redeem_authority: u.pubkey(),
                     new_update_authority: u.pubkey(),
+                    new_freeze_authority: u.pubkey(),
                 })
                 .args(proof_of_reserves::instruction::SetAppConfig {
                     new_issuance_fee_rate: 1u16,
@@ -407,6 +408,7 @@ async fn test_initialize() {
                     new_issue_authority: signer.pubkey(),
                     new_redeem_authority: signer.pubkey(),
                     new_update_authority: signer.pubkey(),
+                    new_freeze_authority: signer.pubkey(),
                 })
                 .args(proof_of_reserves::instruction::SetAppConfig {
                     new_issuance_fee_rate: 0u16,

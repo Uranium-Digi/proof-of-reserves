@@ -18,4 +18,5 @@ pub enum CustomError {
     InvalidFeeRate,
     InvalidProgramId,
     ReportAlreadyVerified,
+    YouAreNotFreezeAuthority,
 }
